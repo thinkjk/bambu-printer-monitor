@@ -1,0 +1,1026 @@
+blueprint:
+  name: Bambu Lab 3D Printer Monitor
+  description: >
+    Monitor your Bambu Lab 3D printer for print completion, failures, and other status changes.
+    Sends notifications with camera snapshots and provides detailed print information.
+  domain: automation
+  input:
+    printer_name:
+      name: Printer Name
+      description: Custom name for your printer (e.g., "Bambu X1 Carbon")
+      default: "Bambu Printer"
+      selector:
+        text:
+    print_status_entity:
+      name: Print Status Entity
+      description: The print status sensor (e.g., sensor.h2d_0948ab510700345_print_status)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    print_progress_entity:
+      name: Print Progress Entity  
+      description: The print progress sensor (e.g., sensor.h2d_0948ab510700345_print_progress)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    current_stage_entity:
+      name: Current Stage Entity
+      description: The current stage sensor (e.g., sensor.h2d_0948ab510700345_current_stage)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    bed_temperature_entity:
+      name: Bed Temperature Entity
+      description: The bed temperature sensor (e.g., sensor.h2d_0948ab510700345_bed_temperature)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    nozzle_temperature_entity:
+      name: Nozzle Temperature Entity
+      description: The active/current nozzle temperature sensor (e.g., sensor.x1c_nozzle_temperature)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    nozzle_1_temperature_entity:
+      name: Nozzle 1 Temperature Entity (Optional)
+      description: First nozzle temperature for dual-nozzle printers (e.g., sensor.x1c_nozzle_1_temperature)
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    nozzle_2_temperature_entity:
+      name: Nozzle 2 Temperature Entity (Optional)
+      description: Second nozzle temperature for dual-nozzle printers (e.g., sensor.x1c_nozzle_2_temperature)
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    remaining_time_entity:
+      name: Remaining Time Entity
+      description: The remaining time sensor (e.g., sensor.h2d_0948ab510700345_remaining_time)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    bed_target_temperature_entity:
+      name: Bed Target Temperature Entity
+      description: The bed target temperature sensor (e.g., sensor.h2d_0948ab510700345_bed_target_temperature)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    gcode_filename_entity:
+      name: GCode Filename Entity
+      description: The gcode filename sensor (e.g., sensor.h2d_0948ab510700345_gcode_filename)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    camera_entity:
+      name: Printer Camera
+      description: The camera entity for your Bambu Lab printer
+      selector:
+        entity:
+          domain: camera
+    notify_device:
+      name: Notification Device
+      description: Device to send notifications to
+      selector:
+        device:
+          integration: mobile_app
+    notify_service:
+      name: Notification Service (Optional)
+      description: Alternative notification service (leave blank to use device)
+      default: ""
+      selector:
+        text:
+    enable_progress_updates:
+      name: Enable Progress Updates
+      description: Send notifications at 25%, 50%, 75%, 100% completion
+      default: false
+      selector:
+        boolean:
+    enable_persistent_notification:
+      name: Enable Persistent Progress Notification
+      description: Show a persistent, auto-updating notification with live progress bar throughout the print
+      default: false
+      selector:
+        boolean:
+    enable_ams_alerts:
+      name: Enable AMS Alerts
+      description: Send alerts for AMS filament changes, errors, etc.
+      default: true
+      selector:
+        boolean:
+    ams_1_entity:
+      name: AMS 1 Device (Optional)
+      description: First AMS device for monitoring filament levels
+      default: ""
+      selector:
+        device:
+          integration: bambu_lab
+    ams_2_entity:
+      name: AMS 2 Device (Optional)
+      description: Second AMS device for monitoring filament levels
+      default: ""
+      selector:
+        device:
+          integration: bambu_lab
+    ams_3_entity:
+      name: AMS 3 Device (Optional)
+      description: Third AMS device for monitoring filament levels
+      default: ""
+      selector:
+        device:
+          integration: bambu_lab
+    ams_4_entity:
+      name: AMS 4 Device (Optional)
+      description: Fourth AMS device for monitoring filament levels
+      default: ""
+      selector:
+        device:
+          integration: bambu_lab
+    ams_ht_entity:
+      name: AMS HT Device (Optional)
+      description: AMS HT device for high-temperature filaments
+      default: ""
+      selector:
+        device:
+          integration: bambu_lab
+    include_live_view:
+      name: Include Live View Link
+      description: Add a link to the live camera view in notifications
+      default: true
+      selector:
+        boolean:
+    quiet_hours_start:
+      name: Quiet Hours Start
+      description: Start time for quiet hours (no notifications)
+      default: "22:00:00"
+      selector:
+        time:
+    quiet_hours_end:
+      name: Quiet Hours End
+      description: End time for quiet hours
+      default: "07:00:00"
+      selector:
+        time:
+    home_assistant_url:
+      name: Home Assistant URL
+      description: Your Home Assistant URL for notification actions (e.g., http://homeassistant.local:8123)
+      default: "http://homeassistant.local:8123"
+      selector:
+        text:
+    printer_dashboard_path:
+      name: Printer Dashboard Path
+      description: Path to your printer dashboard (e.g., /lovelace/3d-printer)
+      default: "/lovelace/dashboard"
+      selector:
+        text:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  print_status: !input print_status_entity
+  print_progress: !input print_progress_entity
+  current_stage: !input current_stage_entity
+  bed_temperature: !input bed_temperature_entity
+  nozzle_temperature: !input nozzle_temperature_entity
+  nozzle_1_temperature: !input nozzle_1_temperature_entity
+  nozzle_2_temperature: !input nozzle_2_temperature_entity
+  remaining_time: !input remaining_time_entity
+  bed_target_temperature: !input bed_target_temperature_entity
+  gcode_filename: !input gcode_filename_entity
+  camera: !input camera_entity
+  notify_device: !input notify_device
+  notify_service: !input notify_service
+  enable_progress: !input enable_progress_updates
+  enable_persistent: !input enable_persistent_notification
+  enable_ams_alerts: !input enable_ams_alerts
+  include_live_view: !input include_live_view
+  quiet_start: !input quiet_hours_start
+  quiet_end: !input quiet_hours_end
+  home_assistant_url: !input home_assistant_url
+  dashboard_path: !input printer_dashboard_path
+  
+  # Use custom printer name from input
+  printer_name: !input printer_name
+  
+  # Build nozzle temperature display (supports dual nozzles)
+  nozzle_temps: >
+    {% set has_n1 = nozzle_1_temperature != '' and states(nozzle_1_temperature) not in ['unknown', 'unavailable', ''] %}
+    {% set has_n2 = nozzle_2_temperature != '' and states(nozzle_2_temperature) not in ['unknown', 'unavailable', ''] %}
+    {% if has_n1 and has_n2 %}
+      Nozzle: {{ states(nozzle_temperature) | default('unknown') }}°C (N1: {{ states(nozzle_1_temperature) }}°C, N2: {{ states(nozzle_2_temperature) }}°C)
+    {% elif has_n1 or has_n2 %}
+      Nozzle: {{ states(nozzle_temperature) | default('unknown') }}°C
+    {% else %}
+      Nozzle: {{ states(nozzle_temperature) | default('unknown') }}°C
+    {% endif %}
+  
+  # Build live view URL for camera
+  live_view_url: >
+    {{ home_assistant_url }}/api/camera_proxy/{{ camera }}
+  
+  # Extract just the filename from the full gcode path (e.g., "/data/Metadata/plate_1.gcode" -> "plate_1")
+  gcode_name: >
+    {% set full_path = states(gcode_filename) | default('') %}
+    {% if full_path %}
+      {% set filename = full_path.split('/')[-1] %}
+      {% set name = filename.replace('.gcode', '').replace('.3mf', '') %}
+      {{ name if name else 'Print Job' }}
+    {% else %}
+      Print Job
+    {% endif %}
+
+  # Check if we're in quiet hours
+  is_quiet_time: >
+    {% set now_time = now().strftime('%H:%M:%S') %}
+    {% if quiet_start <= quiet_end %}
+      {{ quiet_start <= now_time <= quiet_end }}
+    {% else %}
+      {{ now_time >= quiet_start or now_time <= quiet_end }}
+    {% endif %}
+
+trigger:
+  # Print completion/failure triggers - different durations for different states
+  - platform: state
+    entity_id: !input print_status_entity
+    to:
+      - "finish"
+      - "failed"
+    for:
+      seconds: 15
+    id: print_status_change
+  
+  # Offline trigger - require MUCH longer stability to avoid connectivity spam
+  - platform: state
+    entity_id: !input print_status_entity
+    to: "offline"
+    for:
+      minutes: 5
+    id: printer_offline
+  
+  # Print start trigger - quick notification when print begins
+  - platform: state
+    entity_id: !input current_stage_entity
+    to: "printing"
+    not_from:
+      - "printing"  # Don't trigger if already printing
+    for:
+      seconds: 15  # Increased stability time
+    id: print_started
+  
+  # Progress triggers - tightened ranges to prevent multiple triggers
+  - platform: numeric_state
+    entity_id: !input print_progress_entity
+    above: 24.5
+    below: 26
+    for:
+      seconds: 30
+    id: progress_25
+
+  - platform: numeric_state
+    entity_id: !input print_progress_entity
+    above: 49.5
+    below: 51
+    for:
+      seconds: 30
+    id: progress_50
+
+  - platform: numeric_state
+    entity_id: !input print_progress_entity
+    above: 74.5
+    below: 76
+    for:
+      seconds: 30
+    id: progress_75
+
+  - platform: numeric_state
+    entity_id: !input print_progress_entity
+    above: 99.5
+    below: 101
+    for:
+      seconds: 30
+    id: progress_100
+
+  # Persistent notification update trigger - fires on any progress change
+  - platform: state
+    entity_id: !input print_progress_entity
+    id: persistent_progress_update
+
+  # Print error triggers - immediate for critical issues
+  - platform: state
+    entity_id: !input print_status_entity
+    to: "Print error"
+    for:
+      seconds: 5
+    id: print_error
+    
+  # Pause/resume triggers - require stable state
+  - platform: state
+    entity_id: !input current_stage_entity
+    to: "pause"
+    not_from:
+      - "pause"  # Don't trigger if already paused
+    for:
+      seconds: 10
+    id: print_paused
+
+  - platform: state
+    entity_id: !input current_stage_entity
+    from: "pause"
+    to: "printing"
+    for:
+      seconds: 10
+    id: print_resumed
+
+  # Filament runout detection - monitors for specific filament-related states
+  - platform: state
+    entity_id: !input print_status_entity
+    to: "filament_runout"
+    for:
+      seconds: 5
+    id: filament_runout
+
+  # Alternative filament detection - some printers report it differently
+  - platform: state
+    entity_id: !input current_stage_entity
+    to: "filament_unload"
+    for:
+      seconds: 5
+    id: filament_issue
+
+# Temporarily disable all conditions for debugging
+# condition:
+
+condition:
+  # Don't send notifications during quiet hours unless it's important
+  - condition: or
+    conditions:
+      - condition: template
+        value_template: "{{ not is_quiet_time }}"
+      - condition: and
+        conditions:
+          - condition: template
+            value_template: "{{ is_quiet_time }}"
+          - condition: trigger
+            id:
+              - print_status_change
+              - print_error
+              - printer_offline
+              - print_started
+              - filament_runout
+              - filament_issue
+          - condition: template
+            value_template: "{{ trigger.to_state.state in ['failed', 'Print error'] or trigger.id in ['printer_offline', 'print_started', 'filament_runout', 'filament_issue'] }}"
+
+action:
+  
+  # NUCLEAR anti-spam protection - absolutely no false positives allowed
+  - condition: template
+    value_template: >
+      {{ trigger.from_state is not none and
+         trigger.to_state is not none and
+         trigger.from_state.state != trigger.to_state.state }}
+  
+  # ULTIMATE print completion validation - only allow if progress is high enough
+  - condition: template
+    value_template: >
+      {{ trigger.id != 'print_status_change' or
+         trigger.to_state.state != 'finish' or
+         states(print_progress) | int >= 98 }}
+  
+  - choose:
+      # Print completed successfully
+      - conditions:
+          - condition: trigger
+            id: print_status_change
+          - condition: state
+            entity_id: !input print_status_entity
+            state: "finish"
+        sequence:
+          # Update persistent notification to 100% before clearing
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      title: "🖨️ {{ printer_name }} Printing"
+                      message: >
+                        100% Complete
+
+                        📄 {{ gcode_name }}
+                        🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                      data:
+                        tag: "bambu_persistent_progress"
+                        channel: "3d_printer_persistent"
+                        importance: low
+                        notification_icon: "mdi:printer-3d"
+                        color: "#4CAF50"
+                        sticky: false
+                        timeout: 0
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    title: "🖨️ {{ printer_name }} Printing"
+                    message: >
+                      100% Complete
+
+                      📄 {{ gcode_name }}
+                      🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                    data:
+                      tag: "bambu_persistent_progress"
+                      channel: "3d_printer_persistent"
+                      importance: low
+                      sticky: false
+                      timeout: 0
+
+              # Wait a moment for user to see 100%
+              - delay:
+                  seconds: 2
+
+              # Now clear the persistent notification
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      message: "clear_notification"
+                      data:
+                        tag: "bambu_persistent_progress"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: "clear_notification"
+                    data:
+                      tag: "bambu_persistent_progress"
+
+          # Send completion notification
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "🎉 Print Complete"
+                  message: "{{ printer_name }} print finished successfully"
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer"
+                    importance: high
+                    notification_icon: "mdi:printer-3d"
+                    color: "#4CAF50"
+                    actions:
+                      - action: "VIEW_PRINTER"
+                        title: "View Printer"
+                      - action: "CAMERA_VIEW"
+                        title: "Camera"
+                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "🎉 Print Complete"
+                message: "{{ printer_name }} print finished successfully"
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer"
+                  importance: high
+                  actions:
+                    - action: "VIEW_PRINTER"
+                      title: "View Printer"
+                    - action: "CAMERA_VIEW"
+                      title: "Camera"
+                  clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+
+      # Print failed or error
+      - conditions:
+          - condition: trigger
+            id:
+              - print_status_change
+              - print_error
+          - condition: template
+            value_template: "{{ trigger.to_state.state in ['failed', 'Print error'] }}"
+        sequence:
+          # Clear persistent notification if enabled
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      message: "clear_notification"
+                      data:
+                        tag: "bambu_persistent_progress"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: "clear_notification"
+                    data:
+                      tag: "bambu_persistent_progress"
+
+          # Send failure notification
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "❌ Print Failed"
+                  message: "{{ printer_name }} print failed - {{ trigger.to_state.state }}"
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer_alerts"
+                    importance: max
+                    notification_icon: "mdi:printer-3d-off"
+                    color: "#F44336"
+                    actions:
+                      - action: "VIEW_PRINTER"
+                        title: "View Printer"
+                      - action: "CAMERA_VIEW"
+                        title: "Camera"
+                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "❌ Print Failed"
+                message: "{{ printer_name }} print failed - {{ trigger.to_state.state }}"
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer_alerts"
+                  importance: max
+                  actions:
+                    - action: "VIEW_PRINTER"
+                      title: "View Printer"
+                    - action: "CAMERA_VIEW"
+                      title: "Camera"
+                  clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+
+      # Print started
+      - conditions:
+          - condition: trigger
+            id: print_started
+          # Additional validation to prevent duplicate notifications
+          - condition: template
+            value_template: >
+              {{ states(print_progress) | int < 5 }}
+          - condition: template
+            value_template: >
+              {{ states(print_status) == 'printing' }}
+          # Ensure we're transitioning FROM a non-printing state
+          - condition: template
+            value_template: >
+              {{ trigger.from_state.state != 'printing' }}
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "🚀 Print Started"
+                  message: "{{ gcode_name }} started"
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer"
+                    notification_icon: "mdi:printer-3d"
+                    color: "#2196F3"
+                    actions:
+                      - action: "VIEW_PRINTER"
+                        title: "View Printer"
+                      - action: "CAMERA_VIEW"
+                        title: "Camera"
+                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "🚀 Print Started"
+                message: >
+                  {{ printer_name }} started printing.
+                  
+                  🌡️ Bed temp: {{ states(bed_target_temperature) | default('unknown') }}°C
+                  🔧 Stage: {{ states(current_stage) | default('unknown') }}
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer"
+
+      # Progress updates (25%, 50%, 75%) - only if persistent notifications are disabled
+      - conditions:
+          - condition: template
+            value_template: "{{ enable_progress }}"
+          - condition: template
+            value_template: "{{ not enable_persistent }}"
+          - condition: trigger
+            id:
+              - progress_25
+              - progress_50
+              - progress_75
+          # Ensure we're actually printing
+          - condition: state
+            entity_id: !input current_stage_entity
+            state: "printing"
+          # Additional check to ensure we haven't already sent this progress notification
+          - condition: template
+            value_template: >
+              {% set progress = states(print_progress) | int %}
+              {% set trigger_progress = trigger.id.split('_')[1] | int %}
+              {{ progress >= trigger_progress and progress < trigger_progress + 2 }}
+        sequence:
+          - variables:
+              progress_percent: "{{ trigger.id.split('_')[1] }}"
+
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "📈 Print Progress: {{ progress_percent }}%"
+                  message: >
+                    {{ printer_name }} is {{ progress_percent }}% complete.
+
+                    📄 Task: {{ gcode_name }}
+                    ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min
+                    🌡️ Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
+                    🔧 Stage: {{ states(current_stage) | default('unknown') }}
+
+                    {% if include_live_view %}📹 [View Live Progress]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer_progress"
+                    notification_icon: "mdi:printer-3d"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "📈 Print Progress: {{ progress_percent }}%"
+                message: >
+                  {{ printer_name }} is {{ progress_percent }}% complete.
+
+                  ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min
+                  🌡️ Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
+                  🔧 Stage: {{ states(current_stage) | default('unknown') }}
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer_progress"
+
+      # 100% completion notification - only if persistent notifications are disabled
+      - conditions:
+          - condition: template
+            value_template: "{{ enable_progress }}"
+          - condition: template
+            value_template: "{{ not enable_persistent }}"
+          - condition: trigger
+            id: progress_100
+          # Ensure we're actually printing or just finished
+          - condition: template
+            value_template: "{{ states(current_stage) in ['printing', 'finish'] }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "🎉 Print Complete!"
+                  message: >
+                    {{ printer_name }} has finished printing!
+
+                    📄 Task: {{ gcode_name }}
+                    🌡️ Final Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
+
+                    {% if include_live_view %}📹 [View Result]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer_progress"
+                    importance: high
+                    notification_icon: "mdi:printer-3d-nozzle"
+                    color: "#4CAF50"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "🎉 Print Complete!"
+                message: >
+                  {{ printer_name }} has finished printing!
+
+                  📄 Task: {{ gcode_name }}
+                  🌡️ Final Temps: Bed {{ states(bed_temperature) }}°C, {{ nozzle_temps }}
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer_progress"
+                  importance: high
+
+      # Print paused
+      - conditions:
+          - condition: trigger
+            id: print_paused
+          # Verify we actually transitioned from printing
+          - condition: template
+            value_template: >
+              {{ trigger.from_state.state in ['printing', 'auto_bed_leveling', 'homing'] }}
+        sequence:
+          # Clear persistent notification if enabled
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      message: "clear_notification"
+                      data:
+                        tag: "bambu_persistent_progress"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: "clear_notification"
+                    data:
+                      tag: "bambu_persistent_progress"
+
+          # Send pause notification
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "⏸️ Print Paused"
+                  message: >
+                    {{ printer_name }} print has been paused.
+
+                    📄 Task: {{ gcode_name }}
+                    📊 Progress: {{ states(print_progress) | default(0) }}%
+
+                    {% if include_live_view %}📹 [View Live Camera]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer"
+                    notification_icon: "mdi:pause"
+                    color: "#FF9800"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "⏸️ Print Paused"
+                message: >
+                  {{ printer_name }} print has been paused.
+
+                  📊 Progress: {{ states(print_progress) | default(0) }}%
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer"
+
+      # Print resumed
+      - conditions:
+          - condition: trigger
+            id: print_resumed
+          # Verify we're actually resuming from pause
+          - condition: template
+            value_template: >
+              {{ trigger.from_state.state == 'pause' and
+                 states(print_status) == 'printing' }}
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "▶️ Print Resumed"
+                  message: >
+                    {{ printer_name }} print has been resumed.
+
+                    📄 Task: {{ gcode_name }}
+                    📊 Progress: {{ states(print_progress) | default(0) }}%
+                    ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min
+
+                    {% if include_live_view %}📹 [Watch Live Progress]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer"
+                    notification_icon: "mdi:play"
+                    color: "#4CAF50"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "▶️ Print Resumed"
+                message: >
+                  {{ printer_name }} print has been resumed.
+
+                  📊 Progress: {{ states(print_progress) | default(0) }}%
+                  ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer"
+
+      # Filament runout/issue detected
+      - conditions:
+          - condition: template
+            value_template: "{{ enable_ams_alerts }}"
+          - condition: trigger
+            id:
+              - filament_runout
+              - filament_issue
+        sequence:
+          # Clear persistent notification if enabled
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      message: "clear_notification"
+                      data:
+                        tag: "bambu_persistent_progress"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: "clear_notification"
+                    data:
+                      tag: "bambu_persistent_progress"
+
+          # Send critical filament notification
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "🚨 Filament Runout!"
+                  message: >
+                    {{ printer_name }} has run out of filament!
+
+                    📄 Task: {{ gcode_name }}
+                    📊 Progress: {{ states(print_progress) | default(0) }}%
+
+                    ⚠️ Load new filament to continue printing.
+
+                    {% if include_live_view %}📹 [View Camera]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer_alerts"
+                    importance: max
+                    notification_icon: "mdi:printer-3d-nozzle-alert"
+                    color: "#FF5722"
+                    actions:
+                      - action: "VIEW_PRINTER"
+                        title: "View Printer"
+                      - action: "CAMERA_VIEW"
+                        title: "Camera"
+                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "🚨 Filament Runout!"
+                message: >
+                  {{ printer_name }} has run out of filament!
+
+                  📊 Progress: {{ states(print_progress) | default(0) }}%
+
+                  ⚠️ Load new filament to continue printing.
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer_alerts"
+                  importance: max
+
+      # Persistent progress notification - updates throughout the print
+      - conditions:
+          - condition: template
+            value_template: "{{ enable_persistent }}"
+          - condition: trigger
+            id: persistent_progress_update
+          - condition: state
+            entity_id: !input current_stage_entity
+            state: "printing"
+          - condition: template
+            value_template: "{{ states(print_progress) | int >= 0 and states(print_progress) | int < 100 }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "🖨️ {{ printer_name }} Printing"
+                  message: >
+                    {{ states(print_progress) | int }}% Complete
+
+                    📄 {{ gcode_name }}
+                    ⏱️ {{ states(remaining_time) | default('unknown') }} min remaining
+                    🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                  data:
+                    tag: "bambu_persistent_progress"
+                    channel: "3d_printer_persistent"
+                    importance: low
+                    notification_icon: "mdi:printer-3d"
+                    color: "#2196F3"
+                    sticky: true
+                    timeout: 0
+                    progress: "{{ states(print_progress) | int }}"
+                    progress_max: 100
+                    actions:
+                      - action: "URI"
+                        title: "View Printer"
+                        uri: "{{ home_assistant_url }}{{ dashboard_path }}"
+                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "🖨️ {{ printer_name }} Printing"
+                message: >
+                  {{ states(print_progress) | int }}% Complete
+
+                  📄 {{ gcode_name }}
+                  ⏱️ {{ states(remaining_time) | default('unknown') }} min remaining
+                  🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                data:
+                  tag: "bambu_persistent_progress"
+                  channel: "3d_printer_persistent"
+                  importance: low
+                  sticky: true
+                  timeout: 0
+                  progress: "{{ states(print_progress) | int }}"
+                  progress_max: 100
+                  actions:
+                    - action: "URI"
+                      title: "View Printer"
+                      uri: "{{ home_assistant_url }}{{ dashboard_path }}"
+                  clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+
+      # Printer went offline - separate trigger with long delay
+      - conditions:
+          - condition: trigger
+            id: printer_offline
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "🔌 Printer Offline"
+                  message: "Printer lost connection - check power and network"
+                  data:
+                    channel: "3d_printer_alerts"
+                    importance: high
+                    notification_icon: "mdi:printer-off"
+                    color: "#FF9800"
+                    actions:
+                      - action: "VIEW_PRINTER"
+                        title: "View Printer"
+                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "🔌 Printer Offline"
+                message: >
+                  {{ printer_name }} has gone offline. 
+                  Check power connection and network connectivity.
+                data:
+                  channel: "3d_printer_alerts"
+                  importance: high
+
+  # Log automation triggers for debugging
+  - service: logbook.log
+    data:
+      name: "Bambu Lab Printer Monitor"
+      message: "Automation triggered for {{ printer_name }}: {{ trigger.id }}"
+      entity_id: !input print_status_entity
