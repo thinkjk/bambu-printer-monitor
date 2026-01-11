@@ -25,7 +25,7 @@ A Home Assistant Blueprint for monitoring Bambu Lab 3D printers with smart notif
 
 1. Click the button below to import the blueprint:
 
-   [![Open your Home Assistant instance and show the blueprint import dialog with this blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thinkjk/bambu-printer-monitor/blob/main/bambu_printer_monitor.yaml)
+   [![Open your Home Assistant instance and show the blueprint import dialog with this blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thinkjk/bambu-printer-monitor/blob/master/bambu_printer_monitor.yaml)
 
 2. Or manually copy `bambu_printer_monitor.yaml` to your `config/blueprints/automation/` directory
 
