@@ -1,9 +1,10 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor
+  name: Bambu Lab 3D Printer Monitor (v1.0.0)
   description: >
     Monitor your Bambu Lab 3D printer for print completion, failures, and other status changes.
     Sends notifications with camera snapshots and provides detailed print information.
   domain: automation
+  source_url: https://github.com/thinkjk/bambu-printer-monitor/blob/master/bambu_printer_monitor.yaml
   input:
     printer_name:
       name: Printer Name
