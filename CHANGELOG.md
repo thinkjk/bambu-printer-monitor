@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.2] - 2026-01-12
+
+### Fixed
+- Fixed filament runout detection - now correctly monitors `paused_filament_runout` state
+
+### Added
+- AMS connection lost detection (`paused_ams_lost`)
+- Nozzle clog detection (`paused_nozzle_clog`)
+- Dynamic alert messages based on issue type
+
 ## [1.0.1] - 2026-01-11
 
 ### Added

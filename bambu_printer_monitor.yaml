@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.1)
+  name: Bambu Lab 3D Printer Monitor (v1.0.2)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -356,21 +356,29 @@ trigger:
       seconds: 10
     id: print_resumed
 
-  # Filament runout detection - monitors for specific filament-related states
+  # Filament runout detection - monitors current_stage for filament issues
   - platform: state
-    entity_id: !input print_status_entity
-    to: "filament_runout"
+    entity_id: !input current_stage_entity
+    to: "paused_filament_runout"
     for:
       seconds: 5
     id: filament_runout
 
-  # Alternative filament detection - some printers report it differently
+  # AMS lost connection
   - platform: state
     entity_id: !input current_stage_entity
-    to: "filament_unload"
+    to: "paused_ams_lost"
     for:
       seconds: 5
-    id: filament_issue
+    id: ams_lost
+
+  # Nozzle clog detection
+  - platform: state
+    entity_id: !input current_stage_entity
+    to: "paused_nozzle_clog"
+    for:
+      seconds: 5
+    id: nozzle_clog
 
 # Temporarily disable all conditions for debugging
 # condition:
@@ -392,9 +400,10 @@ condition:
               - printer_offline
               - print_started
               - filament_runout
-              - filament_issue
+              - ams_lost
+              - nozzle_clog
           - condition: template
-            value_template: "{{ trigger.to_state.state in ['failed', 'Print error'] or trigger.id in ['printer_offline', 'print_started', 'filament_runout', 'filament_issue'] }}"
+            value_template: "{{ trigger.to_state.state in ['failed', 'Print error'] or trigger.id in ['printer_offline', 'print_started', 'filament_runout', 'ams_lost', 'nozzle_clog'] }}"
 
 action:
   
@@ -863,7 +872,8 @@ action:
           - condition: trigger
             id:
               - filament_runout
-              - filament_issue
+              - ams_lost
+              - nozzle_clog
         sequence:
           # Clear persistent notification if enabled
           - if:
@@ -887,21 +897,52 @@ action:
                     data:
                       tag: "bambu_persistent_progress"
 
-          # Send critical filament notification
+          # Send critical filament/AMS notification
+          - variables:
+              alert_title: >
+                {% if trigger.id == 'filament_runout' %}
+                  🚨 Filament Runout!
+                {% elif trigger.id == 'ams_lost' %}
+                  🚨 AMS Connection Lost!
+                {% elif trigger.id == 'nozzle_clog' %}
+                  🚨 Nozzle Clog Detected!
+                {% else %}
+                  🚨 Printer Alert!
+                {% endif %}
+              alert_message: >
+                {% if trigger.id == 'filament_runout' %}
+                  {{ printer_name }} has run out of filament!
+                {% elif trigger.id == 'ams_lost' %}
+                  {{ printer_name }} lost connection to the AMS!
+                {% elif trigger.id == 'nozzle_clog' %}
+                  {{ printer_name }} detected a nozzle clog!
+                {% else %}
+                  {{ printer_name }} needs attention.
+                {% endif %}
+              alert_action: >
+                {% if trigger.id == 'filament_runout' %}
+                  ⚠️ Load new filament to continue printing.
+                {% elif trigger.id == 'ams_lost' %}
+                  ⚠️ Check AMS connection and power.
+                {% elif trigger.id == 'nozzle_clog' %}
+                  ⚠️ Clear the nozzle clog to continue.
+                {% else %}
+                  ⚠️ Check the printer.
+                {% endif %}
           - if:
               - condition: template
                 value_template: "{{ notify_service != '' }}"
             then:
               - service: "{{ notify_service }}"
                 data:
-                  title: "🚨 Filament Runout!"
+                  title: "{{ alert_title }}"
                   message: >
-                    {{ printer_name }} has run out of filament!
+                    {{ alert_message }}
 
                     📄 Task: {{ gcode_name }}
                     📊 Progress: {{ states(print_progress) | default(0) }}%
 
-                    ⚠️ Load new filament to continue printing.
+                    {{ alert_action }}
 
                     {% if include_live_view %}📹 [View Camera]({{ live_view_url }}){% endif %}
                   data:
@@ -920,13 +961,13 @@ action:
               - device_id: !input notify_device
                 domain: mobile_app
                 type: notify
-                title: "🚨 Filament Runout!"
+                title: "{{ alert_title }}"
                 message: >
-                  {{ printer_name }} has run out of filament!
+                  {{ alert_message }}
 
                   📊 Progress: {{ states(print_progress) | default(0) }}%
 
-                  ⚠️ Load new filament to continue printing.
+                  {{ alert_action }}
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer_alerts"
