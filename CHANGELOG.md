@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.1] - 2026-01-11
+
+### Added
+- Estimated finish time displayed in notifications (e.g., "done ~3:45 PM")
+
 ## [1.0.0] - 2026-01-11
 
 ### Added

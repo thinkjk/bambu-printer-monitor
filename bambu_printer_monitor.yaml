@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.0)
+  name: Bambu Lab 3D Printer Monitor (v1.0.1)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
