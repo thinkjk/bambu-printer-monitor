@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.4] - 2026-01-12
+
+### Fixed
+- Notification click actions now open the HA app directly instead of browser (uses `homeassistant://navigate/` scheme)
+
 ## [1.0.3] - 2026-01-12
 
 ### Changed

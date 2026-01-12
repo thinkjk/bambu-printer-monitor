@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.3)
+  name: Bambu Lab 3D Printer Monitor (v1.0.4)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -516,7 +516,7 @@ action:
                         title: "View Printer"
                       - action: "CAMERA_VIEW"
                         title: "Camera"
-                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
                 domain: mobile_app
@@ -532,7 +532,7 @@ action:
                       title: "View Printer"
                     - action: "CAMERA_VIEW"
                       title: "Camera"
-                  clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Print failed or error
       - conditions:
@@ -585,7 +585,7 @@ action:
                         title: "View Printer"
                       - action: "CAMERA_VIEW"
                         title: "Camera"
-                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
                 domain: mobile_app
@@ -601,7 +601,7 @@ action:
                       title: "View Printer"
                     - action: "CAMERA_VIEW"
                       title: "Camera"
-                  clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Print started
       - conditions:
@@ -637,7 +637,7 @@ action:
                         title: "View Printer"
                       - action: "CAMERA_VIEW"
                         title: "Camera"
-                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
                 domain: mobile_app
@@ -958,7 +958,7 @@ action:
                         title: "View Printer"
                       - action: "CAMERA_VIEW"
                         title: "Camera"
-                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
                 domain: mobile_app
@@ -1013,8 +1013,8 @@ action:
                     actions:
                       - action: "URI"
                         title: "View Printer"
-                        uri: "{{ home_assistant_url }}{{ dashboard_path }}"
-                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                        uri: "homeassistant://navigate{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
                 domain: mobile_app
@@ -1037,8 +1037,8 @@ action:
                   actions:
                     - action: "URI"
                       title: "View Printer"
-                      uri: "{{ home_assistant_url }}{{ dashboard_path }}"
-                  clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                      uri: "homeassistant://navigate{{ dashboard_path }}"
+                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Printer went offline - separate trigger with long delay
       - conditions:
@@ -1061,7 +1061,7 @@ action:
                     actions:
                       - action: "VIEW_PRINTER"
                         title: "View Printer"
-                    clickAction: "{{ home_assistant_url }}{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
                 domain: mobile_app
