@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.2)
+  name: Bambu Lab 3D Printer Monitor (v1.0.3)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -80,9 +80,16 @@ blueprint:
         entity:
           domain: sensor
           integration: bambu_lab
-    gcode_filename_entity:
-      name: GCode Filename Entity
-      description: The gcode filename sensor (e.g., sensor.h2d_0948ab510700345_gcode_filename)
+    task_name_entity:
+      name: Task Name Entity
+      description: The task/print name sensor (e.g., sensor.h2d_0948ab510700345_task_name)
+      selector:
+        entity:
+          domain: sensor
+          integration: bambu_lab
+    end_time_entity:
+      name: End Time Entity
+      description: The estimated end time sensor (e.g., sensor.h2d_0948ab510700345_end_time)
       selector:
         entity:
           domain: sensor
@@ -202,7 +209,8 @@ variables:
   nozzle_2_temperature: !input nozzle_2_temperature_entity
   remaining_time: !input remaining_time_entity
   bed_target_temperature: !input bed_target_temperature_entity
-  gcode_filename: !input gcode_filename_entity
+  task_name: !input task_name_entity
+  end_time: !input end_time_entity
   camera: !input camera_entity
   notify_device: !input notify_device
   notify_service: !input notify_service
@@ -234,15 +242,18 @@ variables:
   live_view_url: >
     {{ home_assistant_url }}/api/camera_proxy/{{ camera }}
   
-  # Extract just the filename from the full gcode path (e.g., "/data/Metadata/plate_1.gcode" -> "plate_1")
-  gcode_name: >
-    {% set full_path = states(gcode_filename) | default('') %}
-    {% if full_path %}
-      {% set filename = full_path.split('/')[-1] %}
-      {% set name = filename.replace('.gcode', '').replace('.3mf', '') %}
-      {{ name if name else 'Print Job' }}
+  # Get print task name
+  print_name: >
+    {% set name = states(task_name) | default('') %}
+    {{ name if name not in ['unknown', 'unavailable', ''] else 'Print Job' }}
+
+  # Get estimated finish time from end_time entity
+  finish_time: >
+    {% set end = states(end_time) | default('unknown') %}
+    {% if end not in ['unknown', 'unavailable', ''] %}
+      {{ as_timestamp(end) | timestamp_custom('%-I:%M %p') }}
     {% else %}
-      Print Job
+      unknown
     {% endif %}
 
   # Check if we're in quiet hours
@@ -252,15 +263,6 @@ variables:
       {{ quiet_start <= now_time <= quiet_end }}
     {% else %}
       {{ now_time >= quiet_start or now_time <= quiet_end }}
-    {% endif %}
-
-  # Calculate estimated finish time
-  finish_time: >
-    {% set remaining = states(remaining_time) | int(0) %}
-    {% if remaining > 0 %}
-      {{ (now() + timedelta(minutes=remaining)).strftime('%-I:%M %p') }}
-    {% else %}
-      unknown
     {% endif %}
 
 trigger:
@@ -445,7 +447,7 @@ action:
                       message: >
                         100% Complete
 
-                        📄 {{ gcode_name }}
+                        📄 {{ print_name }}
                         🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
                       data:
                         tag: "bambu_persistent_progress"
@@ -463,7 +465,7 @@ action:
                     message: >
                       100% Complete
 
-                      📄 {{ gcode_name }}
+                      📄 {{ print_name }}
                       🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
                     data:
                       tag: "bambu_persistent_progress"
@@ -624,7 +626,7 @@ action:
               - service: "{{ notify_service }}"
                 data:
                   title: "🚀 Print Started"
-                  message: "{{ gcode_name }} started"
+                  message: "{{ print_name }} started"
                   data:
                     entity_id: !input camera_entity
                     channel: "3d_printer"
@@ -685,7 +687,7 @@ action:
                   message: >
                     {{ printer_name }} is {{ progress_percent }}% complete.
 
-                    📄 Task: {{ gcode_name }}
+                    📄 Task: {{ print_name }}
                     ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min (done ~{{ finish_time }})
                     🌡️ Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
                     🔧 Stage: {{ states(current_stage) | default('unknown') }}
@@ -732,7 +734,7 @@ action:
                   message: >
                     {{ printer_name }} has finished printing!
 
-                    📄 Task: {{ gcode_name }}
+                    📄 Task: {{ print_name }}
                     🌡️ Final Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
 
                     {% if include_live_view %}📹 [View Result]({{ live_view_url }}){% endif %}
@@ -750,7 +752,7 @@ action:
                 message: >
                   {{ printer_name }} has finished printing!
 
-                  📄 Task: {{ gcode_name }}
+                  📄 Task: {{ print_name }}
                   🌡️ Final Temps: Bed {{ states(bed_temperature) }}°C, {{ nozzle_temps }}
                 data:
                   entity_id: !input camera_entity
@@ -799,7 +801,7 @@ action:
                   message: >
                     {{ printer_name }} print has been paused.
 
-                    📄 Task: {{ gcode_name }}
+                    📄 Task: {{ print_name }}
                     📊 Progress: {{ states(print_progress) | default(0) }}%
 
                     {% if include_live_view %}📹 [View Live Camera]({{ live_view_url }}){% endif %}
@@ -841,7 +843,7 @@ action:
                   message: >
                     {{ printer_name }} print has been resumed.
 
-                    📄 Task: {{ gcode_name }}
+                    📄 Task: {{ print_name }}
                     📊 Progress: {{ states(print_progress) | default(0) }}%
                     ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min (done ~{{ finish_time }})
 
@@ -939,7 +941,7 @@ action:
                   message: >
                     {{ alert_message }}
 
-                    📄 Task: {{ gcode_name }}
+                    📄 Task: {{ print_name }}
                     📊 Progress: {{ states(print_progress) | default(0) }}%
 
                     {{ alert_action }}
@@ -995,7 +997,7 @@ action:
                   message: >
                     {{ states(print_progress) | int }}% Complete
 
-                    📄 {{ gcode_name }}
+                    📄 {{ print_name }}
                     ⏱️ {{ states(remaining_time) | default('unknown') }} min remaining (done ~{{ finish_time }})
                     🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
                   data:
@@ -1021,7 +1023,7 @@ action:
                 message: >
                   {{ states(print_progress) | int }}% Complete
 
-                  📄 {{ gcode_name }}
+                  📄 {{ print_name }}
                   ⏱️ {{ states(remaining_time) | default('unknown') }} min remaining (done ~{{ finish_time }})
                   🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
                 data:

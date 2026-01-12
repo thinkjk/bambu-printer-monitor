@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.3] - 2026-01-12
+
+### Changed
+- Replaced `gcode_filename` input with `task_name` for proper print job names
+- Now uses `end_time` entity for finish time instead of calculating from remaining time
+
 ## [1.0.2] - 2026-01-12
 
 ### Fixed
