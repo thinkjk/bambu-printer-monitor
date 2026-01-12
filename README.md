@@ -18,18 +18,34 @@ A Home Assistant Blueprint for monitoring Bambu Lab 3D printers with smart notif
 ## Requirements
 
 - Home Assistant
-- [Bambu Lab integration](https://github.com/greghesp/ha-bambulab)
+- [Bambu Lab integration](https://github.com/greghesp/ha-bambulab) - **Required**. This blueprint relies on the entities provided by this integration.
 - Mobile app for notifications (optional)
 
 ## Installation
 
-1. Click the button below to import the blueprint:
+### Option 1: One-click import
 
-   [![Open your Home Assistant instance and show the blueprint import dialog with this blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thinkjk/bambu-printer-monitor/blob/master/bambu_printer_monitor.yaml)
+Click the button below to import the blueprint:
 
-2. Or manually copy `bambu_printer_monitor.yaml` to your `config/blueprints/automation/` directory
+[![Open your Home Assistant instance and show the blueprint import dialog with this blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thinkjk/bambu-printer-monitor/blob/master/bambu_printer_monitor.yaml)
 
-3. Create a new automation from the blueprint and configure your printer entities
+### Option 2: Manual import via URL
+
+1. Go to **Settings** > **Automations & Scenes** > **Blueprints**
+2. Click **Import Blueprint** (bottom right)
+3. Paste this URL:
+   ```
+   https://github.com/thinkjk/bambu-printer-monitor/blob/master/bambu_printer_monitor.yaml
+   ```
+4. Click **Preview** then **Import**
+
+### Option 3: Manual file copy
+
+Copy `bambu_printer_monitor.yaml` to your `config/blueprints/automation/` directory and restart Home Assistant.
+
+---
+
+After importing, create a new automation from the blueprint and configure your printer entities.
 
 ## Configuration
 
