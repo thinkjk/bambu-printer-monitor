@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.4)
+  name: Bambu Lab 3D Printer Monitor (v1.0.5)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -405,7 +405,7 @@ condition:
               - ams_lost
               - nozzle_clog
           - condition: template
-            value_template: "{{ trigger.to_state.state in ['failed', 'Print error'] or trigger.id in ['printer_offline', 'print_started', 'filament_runout', 'ams_lost', 'nozzle_clog'] }}"
+            value_template: "{{ trigger.to_state.state in ['finish', 'failed', 'Print error'] or trigger.id in ['printer_offline', 'print_started', 'filament_runout', 'ams_lost', 'nozzle_clog'] }}"
 
 action:
   
@@ -981,9 +981,8 @@ action:
             value_template: "{{ enable_persistent }}"
           - condition: trigger
             id: persistent_progress_update
-          - condition: state
-            entity_id: !input current_stage_entity
-            state: "printing"
+          - condition: template
+            value_template: "{{ states(print_status) == 'printing' }}"
           - condition: template
             value_template: "{{ states(print_progress) | int >= 0 and states(print_progress) | int < 100 }}"
         sequence:

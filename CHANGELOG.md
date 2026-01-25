@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.5] - 2026-01-24
+
+### Fixed
+- Print completion notifications now sent during quiet hours (was incorrectly blocked)
+- Persistent progress notification no longer gets stuck before 100% when print stage changes
+
 ## [1.0.4] - 2026-01-12
 
 ### Fixed
