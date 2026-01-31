@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.6] - 2026-01-31
+
+### Fixed
+- Fix notifications not working: check for `running` state instead of `printing` for print_status entity (print_status uses `running`, current_stage uses `printing`)
+
 ## [1.0.5] - 2026-01-24
 
 ### Fixed

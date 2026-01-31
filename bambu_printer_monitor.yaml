@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.5)
+  name: Bambu Lab 3D Printer Monitor (v1.0.6)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -613,7 +613,7 @@ action:
               {{ states(print_progress) | int < 5 }}
           - condition: template
             value_template: >
-              {{ states(print_status) == 'printing' }}
+              {{ states(print_status) == 'running' }}
           # Ensure we're transitioning FROM a non-printing state
           - condition: template
             value_template: >
@@ -831,7 +831,7 @@ action:
           - condition: template
             value_template: >
               {{ trigger.from_state.state == 'pause' and
-                 states(print_status) == 'printing' }}
+                 states(print_status) == 'running' }}
         sequence:
           - if:
               - condition: template
@@ -982,7 +982,7 @@ action:
           - condition: trigger
             id: persistent_progress_update
           - condition: template
-            value_template: "{{ states(print_status) == 'printing' }}"
+            value_template: "{{ states(print_status) == 'running' }}"
           - condition: template
             value_template: "{{ states(print_progress) | int >= 0 and states(print_progress) | int < 100 }}"
         sequence:
