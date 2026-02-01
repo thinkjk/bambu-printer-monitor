@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0] - 2026-01-31
+
+### Changed
+- Remaining time now displays in hours:minutes format (e.g., "9h 18m" instead of "558 min")
+- Cleaner notification layout with dot separator (·) instead of pipe (|)
+- Removed redundant prefixes ("Task:", "Progress:", "Final Temps:") for cleaner look
+- Standardized format across all notification types
+
 ## [1.0.6] - 2026-01-31
 
 ### Fixed
