@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.0.6)
+  name: Bambu Lab 3D Printer Monitor (v1.1.0)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -256,6 +256,13 @@ variables:
       unknown
     {% endif %}
 
+  # Format remaining time as hours and minutes
+  remaining_time_formatted: >
+    {% set mins = states(remaining_time) | int(0) %}
+    {% set hours = mins // 60 %}
+    {% set minutes = mins % 60 %}
+    {% if hours > 0 %}{{ hours }}h {{ minutes }}m{% else %}{{ minutes }}m{% endif %}
+
   # Check if we're in quiet hours
   is_quiet_time: >
     {% set now_time = now().strftime('%H:%M:%S') %}
@@ -448,7 +455,7 @@ action:
                         100% Complete
 
                         📄 {{ print_name }}
-                        🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                        🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
                       data:
                         tag: "bambu_persistent_progress"
                         channel: "3d_printer_persistent"
@@ -466,7 +473,7 @@ action:
                       100% Complete
 
                       📄 {{ print_name }}
-                      🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                      🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
                     data:
                       tag: "bambu_persistent_progress"
                       channel: "3d_printer_persistent"
@@ -626,7 +633,11 @@ action:
               - service: "{{ notify_service }}"
                 data:
                   title: "🚀 Print Started"
-                  message: "{{ print_name }} started"
+                  message: >
+                    {{ printer_name }} started printing.
+
+                    📄 {{ print_name }}
+                    🌡️ Bed: {{ states(bed_target_temperature) | default('unknown') }}°C
                   data:
                     entity_id: !input camera_entity
                     channel: "3d_printer"
@@ -645,9 +656,9 @@ action:
                 title: "🚀 Print Started"
                 message: >
                   {{ printer_name }} started printing.
-                  
-                  🌡️ Bed temp: {{ states(bed_target_temperature) | default('unknown') }}°C
-                  🔧 Stage: {{ states(current_stage) | default('unknown') }}
+
+                  📄 {{ print_name }}
+                  🌡️ Bed: {{ states(bed_target_temperature) | default('unknown') }}°C
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer"
@@ -687,10 +698,9 @@ action:
                   message: >
                     {{ printer_name }} is {{ progress_percent }}% complete.
 
-                    📄 Task: {{ print_name }}
-                    ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min (done ~{{ finish_time }})
-                    🌡️ Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
-                    🔧 Stage: {{ states(current_stage) | default('unknown') }}
+                    📄 {{ print_name }}
+                    ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                    🌡️ Bed: {{ states(bed_temperature) | default('unknown') }}°C · {{ nozzle_temps }}
 
                     {% if include_live_view %}📹 [View Live Progress]({{ live_view_url }}){% endif %}
                   data:
@@ -705,9 +715,9 @@ action:
                 message: >
                   {{ printer_name }} is {{ progress_percent }}% complete.
 
-                  ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min (done ~{{ finish_time }})
-                  🌡️ Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
-                  🔧 Stage: {{ states(current_stage) | default('unknown') }}
+                  📄 {{ print_name }}
+                  ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                  🌡️ Bed: {{ states(bed_temperature) | default('unknown') }}°C · {{ nozzle_temps }}
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer_progress"
@@ -734,8 +744,8 @@ action:
                   message: >
                     {{ printer_name }} has finished printing!
 
-                    📄 Task: {{ print_name }}
-                    🌡️ Final Temps: Bed {{ states(bed_temperature) | default('unknown') }}°C, {{ nozzle_temps }}
+                    📄 {{ print_name }}
+                    🌡️ Bed: {{ states(bed_temperature) | default('unknown') }}°C · {{ nozzle_temps }}
 
                     {% if include_live_view %}📹 [View Result]({{ live_view_url }}){% endif %}
                   data:
@@ -752,8 +762,8 @@ action:
                 message: >
                   {{ printer_name }} has finished printing!
 
-                  📄 Task: {{ print_name }}
-                  🌡️ Final Temps: Bed {{ states(bed_temperature) }}°C, {{ nozzle_temps }}
+                  📄 {{ print_name }}
+                  🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer_progress"
@@ -801,8 +811,8 @@ action:
                   message: >
                     {{ printer_name }} print has been paused.
 
-                    📄 Task: {{ print_name }}
-                    📊 Progress: {{ states(print_progress) | default(0) }}%
+                    📄 {{ print_name }}
+                    📊 {{ states(print_progress) | default(0) }}% complete
 
                     {% if include_live_view %}📹 [View Live Camera]({{ live_view_url }}){% endif %}
                   data:
@@ -818,7 +828,8 @@ action:
                 message: >
                   {{ printer_name }} print has been paused.
 
-                  📊 Progress: {{ states(print_progress) | default(0) }}%
+                  📄 {{ print_name }}
+                  📊 {{ states(print_progress) | default(0) }}% complete
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer"
@@ -843,9 +854,9 @@ action:
                   message: >
                     {{ printer_name }} print has been resumed.
 
-                    📄 Task: {{ print_name }}
-                    📊 Progress: {{ states(print_progress) | default(0) }}%
-                    ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min (done ~{{ finish_time }})
+                    📄 {{ print_name }}
+                    📊 {{ states(print_progress) | default(0) }}% complete
+                    ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
 
                     {% if include_live_view %}📹 [Watch Live Progress]({{ live_view_url }}){% endif %}
                   data:
@@ -861,8 +872,9 @@ action:
                 message: >
                   {{ printer_name }} print has been resumed.
 
-                  📊 Progress: {{ states(print_progress) | default(0) }}%
-                  ⏱️ Remaining: {{ states(remaining_time) | default('unknown') }} min (done ~{{ finish_time }})
+                  📄 {{ print_name }}
+                  📊 {{ states(print_progress) | default(0) }}% complete
+                  ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer"
@@ -941,8 +953,8 @@ action:
                   message: >
                     {{ alert_message }}
 
-                    📄 Task: {{ print_name }}
-                    📊 Progress: {{ states(print_progress) | default(0) }}%
+                    📄 {{ print_name }}
+                    📊 {{ states(print_progress) | default(0) }}% complete
 
                     {{ alert_action }}
 
@@ -967,7 +979,8 @@ action:
                 message: >
                   {{ alert_message }}
 
-                  📊 Progress: {{ states(print_progress) | default(0) }}%
+                  📄 {{ print_name }}
+                  📊 {{ states(print_progress) | default(0) }}% complete
 
                   {{ alert_action }}
                 data:
@@ -997,8 +1010,8 @@ action:
                     {{ states(print_progress) | int }}% Complete
 
                     📄 {{ print_name }}
-                    ⏱️ {{ states(remaining_time) | default('unknown') }} min remaining (done ~{{ finish_time }})
-                    🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                    ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                    🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
                   data:
                     tag: "bambu_persistent_progress"
                     channel: "3d_printer_persistent"
@@ -1023,8 +1036,8 @@ action:
                   {{ states(print_progress) | int }}% Complete
 
                   📄 {{ print_name }}
-                  ⏱️ {{ states(remaining_time) | default('unknown') }} min remaining (done ~{{ finish_time }})
-                  🌡️ Bed: {{ states(bed_temperature) }}°C | {{ nozzle_temps }}
+                  ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                  🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
                 data:
                   tag: "bambu_persistent_progress"
                   channel: "3d_printer_persistent"
