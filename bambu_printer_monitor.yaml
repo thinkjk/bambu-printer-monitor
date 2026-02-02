@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.1.0)
+  name: Bambu Lab 3D Printer Monitor (v1.2.0)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -124,6 +124,12 @@ blueprint:
       default: false
       selector:
         boolean:
+    enable_start_notification:
+      name: Enable Print Start Notification
+      description: Send a notification when a print starts
+      default: true
+      selector:
+        boolean:
     enable_ams_alerts:
       name: Enable AMS Alerts
       description: Send alerts for AMS filament changes, errors, etc.
@@ -216,6 +222,7 @@ variables:
   notify_service: !input notify_service
   enable_progress: !input enable_progress_updates
   enable_persistent: !input enable_persistent_notification
+  enable_start_notification: !input enable_start_notification
   enable_ams_alerts: !input enable_ams_alerts
   include_live_view: !input include_live_view
   quiet_start: !input quiet_hours_start
@@ -439,53 +446,11 @@ action:
             entity_id: !input print_status_entity
             state: "finish"
         sequence:
-          # Update persistent notification to 100% before clearing
+          # Clear persistent notification immediately when print completes
           - if:
               - condition: template
                 value_template: "{{ enable_persistent }}"
             then:
-              - if:
-                  - condition: template
-                    value_template: "{{ notify_service != '' }}"
-                then:
-                  - service: "{{ notify_service }}"
-                    data:
-                      title: "🖨️ {{ printer_name }} Printing"
-                      message: >
-                        100% Complete
-
-                        📄 {{ print_name }}
-                        🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
-                      data:
-                        tag: "bambu_persistent_progress"
-                        channel: "3d_printer_persistent"
-                        importance: low
-                        notification_icon: "mdi:printer-3d"
-                        color: "#4CAF50"
-                        sticky: false
-                        timeout: 0
-                else:
-                  - device_id: !input notify_device
-                    domain: mobile_app
-                    type: notify
-                    title: "🖨️ {{ printer_name }} Printing"
-                    message: >
-                      100% Complete
-
-                      📄 {{ print_name }}
-                      🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
-                    data:
-                      tag: "bambu_persistent_progress"
-                      channel: "3d_printer_persistent"
-                      importance: low
-                      sticky: false
-                      timeout: 0
-
-              # Wait a moment for user to see 100%
-              - delay:
-                  seconds: 2
-
-              # Now clear the persistent notification
               - if:
                   - condition: template
                     value_template: "{{ notify_service != '' }}"
@@ -519,10 +484,12 @@ action:
                     notification_icon: "mdi:printer-3d"
                     color: "#4CAF50"
                     actions:
-                      - action: "VIEW_PRINTER"
+                      - action: "URI"
                         title: "View Printer"
-                      - action: "CAMERA_VIEW"
+                        uri: "homeassistant://navigate{{ dashboard_path }}"
+                      - action: "URI"
                         title: "Camera"
+                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -535,10 +502,12 @@ action:
                   channel: "3d_printer"
                   importance: high
                   actions:
-                    - action: "VIEW_PRINTER"
+                    - action: "URI"
                       title: "View Printer"
-                    - action: "CAMERA_VIEW"
+                      uri: "homeassistant://navigate{{ dashboard_path }}"
+                    - action: "URI"
                       title: "Camera"
+                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Print failed or error
@@ -588,10 +557,12 @@ action:
                     notification_icon: "mdi:printer-3d-off"
                     color: "#F44336"
                     actions:
-                      - action: "VIEW_PRINTER"
+                      - action: "URI"
                         title: "View Printer"
-                      - action: "CAMERA_VIEW"
+                        uri: "homeassistant://navigate{{ dashboard_path }}"
+                      - action: "URI"
                         title: "Camera"
+                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -604,16 +575,21 @@ action:
                   channel: "3d_printer_alerts"
                   importance: max
                   actions:
-                    - action: "VIEW_PRINTER"
+                    - action: "URI"
                       title: "View Printer"
-                    - action: "CAMERA_VIEW"
+                      uri: "homeassistant://navigate{{ dashboard_path }}"
+                    - action: "URI"
                       title: "Camera"
+                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Print started
       - conditions:
           - condition: trigger
             id: print_started
+          # Check if start notifications are enabled
+          - condition: template
+            value_template: "{{ enable_start_notification }}"
           # Additional validation to prevent duplicate notifications
           - condition: template
             value_template: >
@@ -644,10 +620,12 @@ action:
                     notification_icon: "mdi:printer-3d"
                     color: "#2196F3"
                     actions:
-                      - action: "VIEW_PRINTER"
+                      - action: "URI"
                         title: "View Printer"
-                      - action: "CAMERA_VIEW"
+                        uri: "homeassistant://navigate{{ dashboard_path }}"
+                      - action: "URI"
                         title: "Camera"
+                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -662,6 +640,14 @@ action:
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer"
+                  actions:
+                    - action: "URI"
+                      title: "View Printer"
+                      uri: "homeassistant://navigate{{ dashboard_path }}"
+                    - action: "URI"
+                      title: "Camera"
+                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
+                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Progress updates (25%, 50%, 75%) - only if persistent notifications are disabled
       - conditions:
@@ -966,10 +952,12 @@ action:
                     notification_icon: "mdi:printer-3d-nozzle-alert"
                     color: "#FF5722"
                     actions:
-                      - action: "VIEW_PRINTER"
+                      - action: "URI"
                         title: "View Printer"
-                      - action: "CAMERA_VIEW"
+                        uri: "homeassistant://navigate{{ dashboard_path }}"
+                      - action: "URI"
                         title: "Camera"
+                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -987,6 +975,14 @@ action:
                   entity_id: !input camera_entity
                   channel: "3d_printer_alerts"
                   importance: max
+                  actions:
+                    - action: "URI"
+                      title: "View Printer"
+                      uri: "homeassistant://navigate{{ dashboard_path }}"
+                    - action: "URI"
+                      title: "Camera"
+                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
+                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Persistent progress notification - updates throughout the print
       - conditions:
