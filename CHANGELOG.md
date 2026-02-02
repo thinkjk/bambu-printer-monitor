@@ -1,12 +1,17 @@
 # Changelog
 
+## [1.2.1] - 2026-02-02
+
+### Fixed
+- Persistent notification now clears immediately when print stage ends (no more stuck at 99%)
+- Removed non-functional Camera button from notifications (camera snapshot is already shown in notification)
+
 ## [1.2.0] - 2026-02-02
 
 ### Added
 - New "Enable Print Start Notification" toggle to disable start notifications
 
 ### Fixed
-- Camera button in notifications now opens the camera entity in the HA app (was non-functional)
 - Persistent notification now clears reliably when print completes
 
 ## [1.1.0] - 2026-01-31

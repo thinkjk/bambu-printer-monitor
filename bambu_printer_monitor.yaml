@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.2.0)
+  name: Bambu Lab 3D Printer Monitor (v1.2.1)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -346,6 +346,12 @@ trigger:
     entity_id: !input print_progress_entity
     id: persistent_progress_update
 
+  # Clear persistent notification when print ends (stage leaves printing)
+  - platform: state
+    entity_id: !input current_stage_entity
+    from: "printing"
+    id: print_stage_ended
+
   # Print error triggers - immediate for critical issues
   - platform: state
     entity_id: !input print_status_entity
@@ -487,9 +493,6 @@ action:
                       - action: "URI"
                         title: "View Printer"
                         uri: "homeassistant://navigate{{ dashboard_path }}"
-                      - action: "URI"
-                        title: "Camera"
-                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -505,9 +508,6 @@ action:
                     - action: "URI"
                       title: "View Printer"
                       uri: "homeassistant://navigate{{ dashboard_path }}"
-                    - action: "URI"
-                      title: "Camera"
-                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Print failed or error
@@ -560,9 +560,6 @@ action:
                       - action: "URI"
                         title: "View Printer"
                         uri: "homeassistant://navigate{{ dashboard_path }}"
-                      - action: "URI"
-                        title: "Camera"
-                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -578,9 +575,6 @@ action:
                     - action: "URI"
                       title: "View Printer"
                       uri: "homeassistant://navigate{{ dashboard_path }}"
-                    - action: "URI"
-                      title: "Camera"
-                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Print started
@@ -623,9 +617,6 @@ action:
                       - action: "URI"
                         title: "View Printer"
                         uri: "homeassistant://navigate{{ dashboard_path }}"
-                      - action: "URI"
-                        title: "Camera"
-                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -644,9 +635,6 @@ action:
                     - action: "URI"
                       title: "View Printer"
                       uri: "homeassistant://navigate{{ dashboard_path }}"
-                    - action: "URI"
-                      title: "Camera"
-                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Progress updates (25%, 50%, 75%) - only if persistent notifications are disabled
@@ -955,9 +943,6 @@ action:
                       - action: "URI"
                         title: "View Printer"
                         uri: "homeassistant://navigate{{ dashboard_path }}"
-                      - action: "URI"
-                        title: "Camera"
-                        uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                     clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
               - device_id: !input notify_device
@@ -979,9 +964,6 @@ action:
                     - action: "URI"
                       title: "View Printer"
                       uri: "homeassistant://navigate{{ dashboard_path }}"
-                    - action: "URI"
-                      title: "Camera"
-                      uri: "homeassistant://navigate/config/entities/entity/{{ camera }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
       # Persistent progress notification - updates throughout the print
@@ -1047,6 +1029,33 @@ action:
                       title: "View Printer"
                       uri: "homeassistant://navigate{{ dashboard_path }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
+
+      # Clear persistent notification when print stage ends (immediate, no delay)
+      - conditions:
+          - condition: template
+            value_template: "{{ enable_persistent }}"
+          - condition: trigger
+            id: print_stage_ended
+          # Only clear if transitioning to a final state
+          - condition: template
+            value_template: "{{ states(current_stage) in ['idle', 'finish', 'failed', 'offline'] or states(print_status) in ['finish', 'failed', 'idle'] }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  message: "clear_notification"
+                  data:
+                    tag: "bambu_persistent_progress"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                message: "clear_notification"
+                data:
+                  tag: "bambu_persistent_progress"
 
       # Printer went offline - separate trigger with long delay
       - conditions:
