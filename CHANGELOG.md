@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.3] - 2026-02-03
+
+### Fixed
+- Persistent notification no longer sticks around after print completes (added current_stage check to prevent race condition)
+
 ## [1.2.2] - 2026-02-03
 
 ### Fixed

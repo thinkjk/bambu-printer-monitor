@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.2.2)
+  name: Bambu Lab 3D Printer Monitor (v1.2.3)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -974,6 +974,8 @@ action:
             id: persistent_progress_update
           - condition: template
             value_template: "{{ states(print_status) == 'running' }}"
+          - condition: template
+            value_template: "{{ states(current_stage) == 'printing' }}"
           - condition: template
             value_template: "{{ states(print_progress) | int >= 0 and states(print_progress) | int < 100 }}"
         sequence:
