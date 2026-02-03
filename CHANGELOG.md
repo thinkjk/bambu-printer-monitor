@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.4] - 2026-02-03
+
+### Fixed
+- Removed false "Print Stopped" alerts that triggered during normal printing
+
 ## [1.2.3] - 2026-02-03
 
 ### Fixed
@@ -9,7 +14,7 @@
 
 ### Fixed
 - Persistent notification now clears for any unexpected failure state (not just known states)
-- Added "Print Stopped" notification when print ends unexpectedly, showing actual status and stage for debugging
+- Added "Print Stopped" notification when print ends unexpectedly (removed in 1.2.4 due to false positives)
 
 ## [1.2.1] - 2026-02-02
 

@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.2.3)
+  name: Bambu Lab 3D Printer Monitor (v1.2.4)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -1026,87 +1026,6 @@ action:
                   timeout: 0
                   progress: "{{ states(print_progress) | int }}"
                   progress_max: 100
-                  actions:
-                    - action: "URI"
-                      title: "View Printer"
-                      uri: "homeassistant://navigate{{ dashboard_path }}"
-                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
-
-      # Clear persistent notification when print is no longer running (catches any failure/stop state)
-      - conditions:
-          - condition: template
-            value_template: "{{ enable_persistent }}"
-          - condition: trigger
-            id: persistent_progress_update
-          # Clear when print status is no longer running (print stopped for any reason)
-          - condition: template
-            value_template: "{{ states(print_status) != 'running' }}"
-          # Skip states that have their own dedicated handlers
-          - condition: template
-            value_template: "{{ states(print_status) not in ['finish', 'failed', 'idle'] }}"
-          # Skip pause states (handled by print_paused trigger)
-          - condition: template
-            value_template: "{{ states(current_stage) not in ['pause', 'paused_filament_runout', 'paused_ams_lost', 'paused_nozzle_clog'] }}"
-        sequence:
-          # Clear the persistent notification
-          - if:
-              - condition: template
-                value_template: "{{ notify_service != '' }}"
-            then:
-              - service: "{{ notify_service }}"
-                data:
-                  message: "clear_notification"
-                  data:
-                    tag: "bambu_persistent_progress"
-            else:
-              - device_id: !input notify_device
-                domain: mobile_app
-                type: notify
-                message: "clear_notification"
-                data:
-                  tag: "bambu_persistent_progress"
-          # Send notification about the unexpected state
-          - if:
-              - condition: template
-                value_template: "{{ notify_service != '' }}"
-            then:
-              - service: "{{ notify_service }}"
-                data:
-                  title: "⚠️ Print Stopped"
-                  message: >
-                    {{ printer_name }} print stopped unexpectedly.
-
-                    📄 {{ print_name }}
-                    📊 {{ states(print_progress) | default(0) }}% complete
-                    📋 Status: {{ states(print_status) }}
-                    🔧 Stage: {{ states(current_stage) }}
-                  data:
-                    entity_id: !input camera_entity
-                    channel: "3d_printer_alerts"
-                    importance: high
-                    notification_icon: "mdi:printer-3d-off"
-                    color: "#FF9800"
-                    actions:
-                      - action: "URI"
-                        title: "View Printer"
-                        uri: "homeassistant://navigate{{ dashboard_path }}"
-                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
-            else:
-              - device_id: !input notify_device
-                domain: mobile_app
-                type: notify
-                title: "⚠️ Print Stopped"
-                message: >
-                  {{ printer_name }} print stopped unexpectedly.
-
-                  📄 {{ print_name }}
-                  📊 {{ states(print_progress) | default(0) }}% complete
-                  📋 Status: {{ states(print_status) }}
-                  🔧 Stage: {{ states(current_stage) }}
-                data:
-                  entity_id: !input camera_entity
-                  channel: "3d_printer_alerts"
-                  importance: high
                   actions:
                     - action: "URI"
                       title: "View Printer"
