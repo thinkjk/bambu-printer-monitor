@@ -966,71 +966,91 @@ action:
                       uri: "homeassistant://navigate{{ dashboard_path }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
-      # Persistent progress notification - updates throughout the print
+      # Persistent progress notification - updates throughout the print or clears when done
       - conditions:
           - condition: template
             value_template: "{{ enable_persistent }}"
           - condition: trigger
             id: persistent_progress_update
-          - condition: template
-            value_template: "{{ states(print_status) == 'running' }}"
-          - condition: template
-            value_template: "{{ states(current_stage) == 'printing' }}"
-          - condition: template
-            value_template: "{{ states(print_progress) | int >= 0 and states(print_progress) | int < 100 }}"
         sequence:
           - if:
               - condition: template
-                value_template: "{{ notify_service != '' }}"
+                value_template: "{{ states(print_status) == 'running' }}"
+              - condition: template
+                value_template: "{{ states(current_stage) == 'printing' }}"
+              - condition: template
+                value_template: "{{ states(print_progress) | int >= 0 and states(print_progress) | int < 100 }}"
             then:
-              - service: "{{ notify_service }}"
-                data:
-                  title: "🖨️ {{ printer_name }} Printing"
-                  message: >
-                    {{ states(print_progress) | int }}% Complete
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      title: "🖨️ {{ printer_name }} Printing"
+                      message: >
+                        {{ states(print_progress) | int }}% Complete
 
-                    📄 {{ print_name }}
-                    ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
-                    🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
-                  data:
-                    tag: "bambu_persistent_progress"
-                    channel: "3d_printer_persistent"
-                    importance: low
-                    notification_icon: "mdi:printer-3d"
-                    color: "#2196F3"
-                    sticky: true
-                    timeout: 0
-                    progress: "{{ states(print_progress) | int }}"
-                    progress_max: 100
-                    actions:
-                      - action: "URI"
-                        title: "View Printer"
-                        uri: "homeassistant://navigate{{ dashboard_path }}"
-                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
+                        📄 {{ print_name }}
+                        ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                        🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
+                      data:
+                        tag: "bambu_persistent_progress"
+                        channel: "3d_printer_persistent"
+                        importance: low
+                        notification_icon: "mdi:printer-3d"
+                        color: "#2196F3"
+                        sticky: true
+                        timeout: 0
+                        progress: "{{ states(print_progress) | int }}"
+                        progress_max: 100
+                        actions:
+                          - action: "URI"
+                            title: "View Printer"
+                            uri: "homeassistant://navigate{{ dashboard_path }}"
+                        clickAction: "homeassistant://navigate{{ dashboard_path }}"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    title: "🖨️ {{ printer_name }} Printing"
+                    message: >
+                      {{ states(print_progress) | int }}% Complete
+
+                      📄 {{ print_name }}
+                      ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                      🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
+                    data:
+                      tag: "bambu_persistent_progress"
+                      channel: "3d_printer_persistent"
+                      importance: low
+                      sticky: true
+                      timeout: 0
+                      progress: "{{ states(print_progress) | int }}"
+                      progress_max: 100
+                      actions:
+                        - action: "URI"
+                          title: "View Printer"
+                          uri: "homeassistant://navigate{{ dashboard_path }}"
+                      clickAction: "homeassistant://navigate{{ dashboard_path }}"
             else:
-              - device_id: !input notify_device
-                domain: mobile_app
-                type: notify
-                title: "🖨️ {{ printer_name }} Printing"
-                message: >
-                  {{ states(print_progress) | int }}% Complete
-
-                  📄 {{ print_name }}
-                  ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
-                  🌡️ Bed: {{ states(bed_temperature) }}°C · {{ nozzle_temps }}
-                data:
-                  tag: "bambu_persistent_progress"
-                  channel: "3d_printer_persistent"
-                  importance: low
-                  sticky: true
-                  timeout: 0
-                  progress: "{{ states(print_progress) | int }}"
-                  progress_max: 100
-                  actions:
-                    - action: "URI"
-                      title: "View Printer"
-                      uri: "homeassistant://navigate{{ dashboard_path }}"
-                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
+              # Print no longer actively running - clear the persistent notification
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      message: "clear_notification"
+                      data:
+                        tag: "bambu_persistent_progress"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: "clear_notification"
+                    data:
+                      tag: "bambu_persistent_progress"
 
       # Clear persistent notification when print stage ends (immediate, no delay)
       - conditions:

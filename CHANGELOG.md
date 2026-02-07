@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.5] - 2026-02-06
+
+### Fixed
+- Persistent notification stuck at 99% when print completes (race condition between progress update and stage change triggers under `mode: single`)
+
 ## [1.2.4] - 2026-02-03
 
 ### Fixed
