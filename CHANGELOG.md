@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.6] - 2026-02-07
+
+### Fixed
+- Persistent notification stuck at 99% on print completion (changed from `mode: single` to `mode: queued` to prevent completion triggers from being silently dropped)
+- Added dedicated `print_finished_clear_persistent` trigger that fires immediately when print status changes to finish (no 15-second delay)
+- Persistent notification cleanup now always runs even during quiet hours
+
 ## [1.2.5] - 2026-02-06
 
 ### Fixed

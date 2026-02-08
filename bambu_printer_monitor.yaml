@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.2.5)
+  name: Bambu Lab 3D Printer Monitor (v1.2.6)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -202,8 +202,9 @@ blueprint:
       selector:
         text:
 
-mode: single
+mode: queued
 max_exceeded: silent
+max: 5
 
 variables:
   print_status: !input print_status_entity
@@ -352,6 +353,12 @@ trigger:
     from: "printing"
     id: print_stage_ended
 
+  # Clear persistent notification when print status changes to finish
+  - platform: state
+    entity_id: !input print_status_entity
+    to: "finish"
+    id: print_finished_clear_persistent
+
   # Print error triggers - immediate for critical issues
   - platform: state
     entity_id: !input print_status_entity
@@ -411,6 +418,11 @@ condition:
     conditions:
       - condition: template
         value_template: "{{ not is_quiet_time }}"
+      # Always allow persistent notification cleanup triggers through
+      - condition: trigger
+        id:
+          - print_stage_ended
+          - print_finished_clear_persistent
       - condition: and
         conditions:
           - condition: template
@@ -1052,12 +1064,14 @@ action:
                     data:
                       tag: "bambu_persistent_progress"
 
-      # Clear persistent notification when print stage ends (immediate, no delay)
+      # Clear persistent notification when print stage ends or print finishes (immediate, no delay)
       - conditions:
           - condition: template
             value_template: "{{ enable_persistent }}"
           - condition: trigger
-            id: print_stage_ended
+            id:
+              - print_stage_ended
+              - print_finished_clear_persistent
         sequence:
           - if:
               - condition: template
