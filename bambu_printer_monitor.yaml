@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.2.6)
+  name: Bambu Lab 3D Printer Monitor (v1.2.7)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -409,6 +409,11 @@ trigger:
       seconds: 5
     id: nozzle_clog
 
+  # Clear stale persistent notifications when quiet time ends
+  - platform: time
+    at: !input quiet_hours_end
+    id: quiet_time_ended
+
 # Temporarily disable all conditions for debugging
 # condition:
 
@@ -423,6 +428,7 @@ condition:
         id:
           - print_stage_ended
           - print_finished_clear_persistent
+          - quiet_time_ended
       - condition: and
         conditions:
           - condition: template
@@ -444,9 +450,10 @@ action:
   # NUCLEAR anti-spam protection - absolutely no false positives allowed
   - condition: template
     value_template: >
-      {{ trigger.from_state is not none and
+      {{ trigger.id == 'quiet_time_ended' or
+         (trigger.from_state is not none and
          trigger.to_state is not none and
-         trigger.from_state.state != trigger.to_state.state }}
+         trigger.from_state.state != trigger.to_state.state) }}
   
   # ULTIMATE print completion validation - only allow if progress is high enough
   - condition: template
@@ -1072,6 +1079,32 @@ action:
             id:
               - print_stage_ended
               - print_finished_clear_persistent
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  message: "clear_notification"
+                  data:
+                    tag: "bambu_persistent_progress"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                message: "clear_notification"
+                data:
+                  tag: "bambu_persistent_progress"
+
+      # Clear stale persistent notification when quiet time ends (in case phone missed the clear during quiet hours)
+      - conditions:
+          - condition: template
+            value_template: "{{ enable_persistent }}"
+          - condition: trigger
+            id: quiet_time_ended
+          - condition: template
+            value_template: "{{ states(print_status) != 'running' }}"
         sequence:
           - if:
               - condition: template

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.7] - 2026-02-09
+
+### Fixed
+- Persistent notification stuck after print completes during quiet hours (phone may miss the clear notification while in DND/power-saving mode; now retries cleanup when quiet time ends)
+
 ## [1.2.6] - 2026-02-07
 
 ### Fixed
