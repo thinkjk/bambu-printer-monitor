@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.2.7)
+  name: Bambu Lab 3D Printer Monitor (v1.3.0)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -359,55 +359,45 @@ trigger:
     to: "finish"
     id: print_finished_clear_persistent
 
-  # Print error triggers - immediate for critical issues
+  # Print paused - detect via print_status going to pause (catches ALL pause scenarios)
   - platform: state
     entity_id: !input print_status_entity
-    to: "Print error"
-    for:
-      seconds: 5
-    id: print_error
-    
-  # Pause/resume triggers - require stable state
-  - platform: state
-    entity_id: !input current_stage_entity
+    from: "running"
     to: "pause"
-    not_from:
-      - "pause"  # Don't trigger if already paused
     for:
       seconds: 10
     id: print_paused
 
+  # Print resumed - detect via print_status returning to running from pause
   - platform: state
-    entity_id: !input current_stage_entity
+    entity_id: !input print_status_entity
     from: "pause"
-    to: "printing"
+    to: "running"
     for:
       seconds: 10
     id: print_resumed
 
-  # Filament runout detection - monitors current_stage for filament issues
+  # Printer error pause - covers all error states that pause the print
+  # These fire faster (5s) than the general print_paused trigger (10s)
+  # so users get specific error messages promptly
   - platform: state
     entity_id: !input current_stage_entity
-    to: "paused_filament_runout"
+    to:
+      - "paused_filament_runout"
+      - "paused_ams_lost"
+      - "paused_nozzle_clog"
+      - "paused_nozzle_temperature_malfunction"
+      - "paused_heat_bed_temperature_malfunction"
+      - "paused_skipped_step"
+      - "paused_front_cover_falling"
+      - "paused_low_fan_speed_heat_break"
+      - "paused_chamber_temperature_control_error"
+      - "paused_nozzle_filament_covered_detected"
+      - "paused_cutter_error"
+      - "paused_first_layer_error"
     for:
       seconds: 5
-    id: filament_runout
-
-  # AMS lost connection
-  - platform: state
-    entity_id: !input current_stage_entity
-    to: "paused_ams_lost"
-    for:
-      seconds: 5
-    id: ams_lost
-
-  # Nozzle clog detection
-  - platform: state
-    entity_id: !input current_stage_entity
-    to: "paused_nozzle_clog"
-    for:
-      seconds: 5
-    id: nozzle_clog
+    id: printer_error_pause
 
   # Clear stale persistent notifications when quiet time ends
   - platform: time
@@ -436,14 +426,12 @@ condition:
           - condition: trigger
             id:
               - print_status_change
-              - print_error
               - printer_offline
               - print_started
-              - filament_runout
-              - ams_lost
-              - nozzle_clog
+              - print_paused
+              - printer_error_pause
           - condition: template
-            value_template: "{{ trigger.to_state.state in ['finish', 'failed', 'Print error'] or trigger.id in ['printer_offline', 'print_started', 'filament_runout', 'ams_lost', 'nozzle_clog'] }}"
+            value_template: "{{ trigger.to_state.state in ['finish', 'failed'] or trigger.id in ['printer_offline', 'print_started', 'print_paused', 'printer_error_pause'] }}"
 
 action:
   
@@ -529,14 +517,13 @@ action:
                       uri: "homeassistant://navigate{{ dashboard_path }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
 
-      # Print failed or error
+      # Print failed
       - conditions:
           - condition: trigger
             id:
               - print_status_change
-              - print_error
           - condition: template
-            value_template: "{{ trigger.to_state.state in ['failed', 'Print error'] }}"
+            value_template: "{{ trigger.to_state.state == 'failed' }}"
         sequence:
           # Clear persistent notification if enabled
           - if:
@@ -762,14 +749,15 @@ action:
                   channel: "3d_printer_progress"
                   importance: high
 
-      # Print paused
+      # Printer error pause - specific error detected via current_stage
+      # This fires faster (5s) than the general print_paused (10s) for known errors
       - conditions:
           - condition: trigger
-            id: print_paused
-          # Verify we actually transitioned from printing
+            id: printer_error_pause
+          # Only gate AMS-lost behind enable_ams_alerts; all other errors always notify
           - condition: template
             value_template: >
-              {{ trigger.from_state.state in ['printing', 'auto_bed_leveling', 'homing'] }}
+              {{ trigger.to_state.state != 'paused_ams_lost' or enable_ams_alerts }}
         sequence:
           # Clear persistent notification if enabled
           - if:
@@ -793,146 +781,78 @@ action:
                     data:
                       tag: "bambu_persistent_progress"
 
-          # Send pause notification
-          - if:
-              - condition: template
-                value_template: "{{ notify_service != '' }}"
-            then:
-              - service: "{{ notify_service }}"
-                data:
-                  title: "⏸️ Print Paused"
-                  message: >
-                    {{ printer_name }} print has been paused.
-
-                    📄 {{ print_name }}
-                    📊 {{ states(print_progress) | default(0) }}% complete
-
-                    {% if include_live_view %}📹 [View Live Camera]({{ live_view_url }}){% endif %}
-                  data:
-                    entity_id: !input camera_entity
-                    channel: "3d_printer"
-                    notification_icon: "mdi:pause"
-                    color: "#FF9800"
-            else:
-              - device_id: !input notify_device
-                domain: mobile_app
-                type: notify
-                title: "⏸️ Print Paused"
-                message: >
-                  {{ printer_name }} print has been paused.
-
-                  📄 {{ print_name }}
-                  📊 {{ states(print_progress) | default(0) }}% complete
-                data:
-                  entity_id: !input camera_entity
-                  channel: "3d_printer"
-
-      # Print resumed
-      - conditions:
-          - condition: trigger
-            id: print_resumed
-          # Verify we're actually resuming from pause
-          - condition: template
-            value_template: >
-              {{ trigger.from_state.state == 'pause' and
-                 states(print_status) == 'running' }}
-        sequence:
-          - if:
-              - condition: template
-                value_template: "{{ notify_service != '' }}"
-            then:
-              - service: "{{ notify_service }}"
-                data:
-                  title: "▶️ Print Resumed"
-                  message: >
-                    {{ printer_name }} print has been resumed.
-
-                    📄 {{ print_name }}
-                    📊 {{ states(print_progress) | default(0) }}% complete
-                    ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
-
-                    {% if include_live_view %}📹 [Watch Live Progress]({{ live_view_url }}){% endif %}
-                  data:
-                    entity_id: !input camera_entity
-                    channel: "3d_printer"
-                    notification_icon: "mdi:play"
-                    color: "#4CAF50"
-            else:
-              - device_id: !input notify_device
-                domain: mobile_app
-                type: notify
-                title: "▶️ Print Resumed"
-                message: >
-                  {{ printer_name }} print has been resumed.
-
-                  📄 {{ print_name }}
-                  📊 {{ states(print_progress) | default(0) }}% complete
-                  ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
-                data:
-                  entity_id: !input camera_entity
-                  channel: "3d_printer"
-
-      # Filament runout/issue detected
-      - conditions:
-          - condition: template
-            value_template: "{{ enable_ams_alerts }}"
-          - condition: trigger
-            id:
-              - filament_runout
-              - ams_lost
-              - nozzle_clog
-        sequence:
-          # Clear persistent notification if enabled
-          - if:
-              - condition: template
-                value_template: "{{ enable_persistent }}"
-            then:
-              - if:
-                  - condition: template
-                    value_template: "{{ notify_service != '' }}"
-                then:
-                  - service: "{{ notify_service }}"
-                    data:
-                      message: "clear_notification"
-                      data:
-                        tag: "bambu_persistent_progress"
-                else:
-                  - device_id: !input notify_device
-                    domain: mobile_app
-                    type: notify
-                    message: "clear_notification"
-                    data:
-                      tag: "bambu_persistent_progress"
-
-          # Send critical filament/AMS notification
+          # Build error-specific notification
           - variables:
+              error_stage: "{{ trigger.to_state.state }}"
               alert_title: >
-                {% if trigger.id == 'filament_runout' %}
+                {% if error_stage == 'paused_filament_runout' %}
                   🚨 Filament Runout!
-                {% elif trigger.id == 'ams_lost' %}
-                  🚨 AMS Connection Lost!
-                {% elif trigger.id == 'nozzle_clog' %}
+                {% elif error_stage == 'paused_nozzle_clog' %}
                   🚨 Nozzle Clog Detected!
+                {% elif error_stage == 'paused_ams_lost' %}
+                  🚨 AMS Connection Lost!
+                {% elif error_stage == 'paused_nozzle_temperature_malfunction' %}
+                  🚨 Nozzle Temperature Error!
+                {% elif error_stage == 'paused_heat_bed_temperature_malfunction' %}
+                  🚨 Bed Temperature Error!
+                {% elif error_stage == 'paused_skipped_step' %}
+                  🚨 Motor Step Loss Detected!
+                {% elif error_stage == 'paused_front_cover_falling' %}
+                  🚨 Front Cover Fell Off!
+                {% elif error_stage == 'paused_low_fan_speed_heat_break' %}
+                  🚨 Heatbreak Fan Speed Low!
+                {% elif error_stage == 'paused_chamber_temperature_control_error' %}
+                  🚨 Chamber Temperature Error!
+                {% elif error_stage == 'paused_nozzle_filament_covered_detected' %}
+                  🚨 Nozzle Filament Buildup!
+                {% elif error_stage == 'paused_cutter_error' %}
+                  🚨 Filament Cutter Error!
+                {% elif error_stage == 'paused_first_layer_error' %}
+                  🚨 First Layer Error!
                 {% else %}
-                  🚨 Printer Alert!
+                  🚨 Printer Error!
                 {% endif %}
               alert_message: >
-                {% if trigger.id == 'filament_runout' %}
+                {% if error_stage == 'paused_filament_runout' %}
                   {{ printer_name }} has run out of filament!
-                {% elif trigger.id == 'ams_lost' %}
-                  {{ printer_name }} lost connection to the AMS!
-                {% elif trigger.id == 'nozzle_clog' %}
+                {% elif error_stage == 'paused_nozzle_clog' %}
                   {{ printer_name }} detected a nozzle clog!
+                {% elif error_stage == 'paused_ams_lost' %}
+                  {{ printer_name }} lost connection to the AMS!
+                {% elif error_stage == 'paused_nozzle_temperature_malfunction' %}
+                  {{ printer_name }} nozzle temperature malfunction!
+                {% elif error_stage == 'paused_heat_bed_temperature_malfunction' %}
+                  {{ printer_name }} heat bed temperature malfunction!
+                {% elif error_stage == 'paused_skipped_step' %}
+                  {{ printer_name }} detected motor step loss!
+                {% elif error_stage == 'paused_front_cover_falling' %}
+                  {{ printer_name }} front cover has fallen off!
+                {% elif error_stage == 'paused_low_fan_speed_heat_break' %}
+                  {{ printer_name }} heatbreak fan speed is too low!
+                {% elif error_stage == 'paused_chamber_temperature_control_error' %}
+                  {{ printer_name }} chamber temperature control error!
+                {% elif error_stage == 'paused_nozzle_filament_covered_detected' %}
+                  {{ printer_name }} detected filament buildup on nozzle!
+                {% elif error_stage == 'paused_cutter_error' %}
+                  {{ printer_name }} filament cutter error!
+                {% elif error_stage == 'paused_first_layer_error' %}
+                  {{ printer_name }} detected a first layer error!
                 {% else %}
                   {{ printer_name }} needs attention.
                 {% endif %}
               alert_action: >
-                {% if trigger.id == 'filament_runout' %}
+                {% if error_stage == 'paused_filament_runout' %}
                   ⚠️ Load new filament to continue printing.
-                {% elif trigger.id == 'ams_lost' %}
-                  ⚠️ Check AMS connection and power.
-                {% elif trigger.id == 'nozzle_clog' %}
+                {% elif error_stage == 'paused_nozzle_clog' %}
                   ⚠️ Clear the nozzle clog to continue.
+                {% elif error_stage == 'paused_ams_lost' %}
+                  ⚠️ Check AMS connection and power.
+                {% elif error_stage == 'paused_front_cover_falling' %}
+                  ⚠️ Reattach the front cover.
+                {% elif error_stage == 'paused_first_layer_error' %}
+                  ⚠️ Check the first layer and bed adhesion.
+                {% elif error_stage == 'paused_cutter_error' %}
+                  ⚠️ Check the filament cutter.
                 {% else %}
                   ⚠️ Check the printer.
                 {% endif %}
@@ -984,6 +904,143 @@ action:
                       title: "View Printer"
                       uri: "homeassistant://navigate{{ dashboard_path }}"
                   clickAction: "homeassistant://navigate{{ dashboard_path }}"
+
+      # Print paused (general) - catches pauses not covered by specific error triggers
+      # Skips if current_stage is a known error (already handled by printer_error_pause above)
+      - conditions:
+          - condition: trigger
+            id: print_paused
+          # Skip if this is a known error pause (the printer_error_pause handler already sent a notification)
+          - condition: template
+            value_template: >
+              {{ states(current_stage) not in [
+                'paused_filament_runout', 'paused_ams_lost', 'paused_nozzle_clog',
+                'paused_nozzle_temperature_malfunction', 'paused_heat_bed_temperature_malfunction',
+                'paused_skipped_step', 'paused_front_cover_falling',
+                'paused_low_fan_speed_heat_break', 'paused_chamber_temperature_control_error',
+                'paused_nozzle_filament_covered_detected', 'paused_cutter_error',
+                'paused_first_layer_error'
+              ] }}
+        sequence:
+          # Clear persistent notification if enabled
+          - if:
+              - condition: template
+                value_template: "{{ enable_persistent }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ notify_service != '' }}"
+                then:
+                  - service: "{{ notify_service }}"
+                    data:
+                      message: "clear_notification"
+                      data:
+                        tag: "bambu_persistent_progress"
+                else:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: "clear_notification"
+                    data:
+                      tag: "bambu_persistent_progress"
+
+          # Determine if this is a user pause or unknown error
+          - variables:
+              is_user_pause: >
+                {{ states(current_stage) in ['paused_user', 'm400_pause', 'paused_user_gcode'] }}
+              pause_title: >
+                {% if is_user_pause %}⏸️ Print Paused{% else %}⚠️ Print Paused{% endif %}
+              pause_message: >
+                {% if is_user_pause %}
+                  {{ printer_name }} print has been paused.
+                {% else %}
+                  {{ printer_name }} print has paused unexpectedly. Check the printer for issues.
+                {% endif %}
+
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "{{ pause_title }}"
+                  message: >
+                    {{ pause_message }}
+
+                    📄 {{ print_name }}
+                    📊 {{ states(print_progress) | default(0) }}% complete
+
+                    {% if include_live_view %}📹 [View Live Camera]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "{% if is_user_pause %}3d_printer{% else %}3d_printer_alerts{% endif %}"
+                    importance: "{% if is_user_pause %}default{% else %}high{% endif %}"
+                    notification_icon: "{% if is_user_pause %}mdi:pause{% else %}mdi:printer-3d-nozzle-alert{% endif %}"
+                    color: "{% if is_user_pause %}#FF9800{% else %}#FF5722{% endif %}"
+                    actions:
+                      - action: "URI"
+                        title: "View Printer"
+                        uri: "homeassistant://navigate{{ dashboard_path }}"
+                    clickAction: "homeassistant://navigate{{ dashboard_path }}"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "{{ pause_title }}"
+                message: >
+                  {{ pause_message }}
+
+                  📄 {{ print_name }}
+                  📊 {{ states(print_progress) | default(0) }}% complete
+                data:
+                  entity_id: !input camera_entity
+                  channel: "{% if is_user_pause %}3d_printer{% else %}3d_printer_alerts{% endif %}"
+                  importance: "{% if is_user_pause %}default{% else %}high{% endif %}"
+                  actions:
+                    - action: "URI"
+                      title: "View Printer"
+                      uri: "homeassistant://navigate{{ dashboard_path }}"
+                  clickAction: "homeassistant://navigate{{ dashboard_path }}"
+
+      # Print resumed
+      - conditions:
+          - condition: trigger
+            id: print_resumed
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "▶️ Print Resumed"
+                  message: >
+                    {{ printer_name }} print has been resumed.
+
+                    📄 {{ print_name }}
+                    📊 {{ states(print_progress) | default(0) }}% complete
+                    ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+
+                    {% if include_live_view %}📹 [Watch Live Progress]({{ live_view_url }}){% endif %}
+                  data:
+                    entity_id: !input camera_entity
+                    channel: "3d_printer"
+                    notification_icon: "mdi:play"
+                    color: "#4CAF50"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                title: "▶️ Print Resumed"
+                message: >
+                  {{ printer_name }} print has been resumed.
+
+                  📄 {{ print_name }}
+                  📊 {{ states(print_progress) | default(0) }}% complete
+                  ⏱️ {{ remaining_time_formatted }} · Done ~{{ finish_time }}
+                data:
+                  entity_id: !input camera_entity
+                  channel: "3d_printer"
 
       # Persistent progress notification - updates throughout the print or clears when done
       - conditions:
