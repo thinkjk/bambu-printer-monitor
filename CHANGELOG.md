@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0] - 2026-02-10
+
+### Fixed
+- **3 triggers that could never fire:**
+  - `print_error` trigger watched `print_status` for `"Print error"` — not a valid state value (valid values are lowercase: `failed`, `finish`, `idle`, `pause`, etc.)
+  - `print_paused` trigger watched `current_stage` for `"pause"` — `current_stage` never reports plain `"pause"`, only specific states like `"paused_user"`, `"paused_filament_runout"`, etc.
+  - `print_resumed` trigger watched `current_stage` from `"pause"` — same issue
+- Pause/resume detection now correctly watches `print_status` for `running` → `pause` and `pause` → `running` transitions
+- Filament runout no longer goes undetected when printer sets `print_error` without changing `stg_cur` (e.g., AMS feeding failures)
+- Filament runout, nozzle clogs, and other critical errors now always notify regardless of the AMS alerts toggle (only AMS-lost remains gated)
+
+### Added
+- 9 new error pause state detections: nozzle temperature malfunction, heat bed temperature malfunction, motor step loss, front cover falling, heatbreak fan speed low, chamber temperature error, nozzle filament buildup, filament cutter error, first layer error
+- Catch-all pause detection: unknown/unrecognized pause reasons now trigger a warning notification instead of being silently ignored
+- Smart deduplication: specific error triggers fire at 5s with detailed messages; general pause trigger fires at 10s but skips if already handled
+
 ## [1.2.7] - 2026-02-09
 
 ### Fixed
