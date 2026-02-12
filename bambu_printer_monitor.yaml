@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.3.0)
+  name: Bambu Lab 3D Printer Monitor (v1.3.1)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -343,8 +343,13 @@ trigger:
     id: progress_100
 
   # Persistent notification update trigger - fires on any progress change
+  # The 5-second stabilization delay prevents a race condition where the progress
+  # entity updates (e.g., resets to 0) BEFORE print_status changes to "finish",
+  # which would cause the notification to be recreated after being cleared.
   - platform: state
     entity_id: !input print_progress_entity
+    for:
+      seconds: 5
     id: persistent_progress_update
 
   # Clear persistent notification when print ends (stage leaves printing)
@@ -1077,7 +1082,7 @@ action:
                         notification_icon: "mdi:printer-3d"
                         color: "#2196F3"
                         sticky: true
-                        timeout: 0
+                        timeout: 600
                         progress: "{{ states(print_progress) | int }}"
                         progress_max: 100
                         actions:
@@ -1101,7 +1106,7 @@ action:
                       channel: "3d_printer_persistent"
                       importance: low
                       sticky: true
-                      timeout: 0
+                      timeout: 600
                       progress: "{{ states(print_progress) | int }}"
                       progress_max: 100
                       actions:
@@ -1137,6 +1142,27 @@ action:
               - print_stage_ended
               - print_finished_clear_persistent
         sequence:
+          # First clear attempt
+          - if:
+              - condition: template
+                value_template: "{{ notify_service != '' }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  message: "clear_notification"
+                  data:
+                    tag: "bambu_persistent_progress"
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                message: "clear_notification"
+                data:
+                  tag: "bambu_persistent_progress"
+          # Retry after 5 seconds - phones in Doze mode or with aggressive
+          # battery optimization may not process the first clear command
+          - delay:
+              seconds: 5
           - if:
               - condition: template
                 value_template: "{{ notify_service != '' }}"
