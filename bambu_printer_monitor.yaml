@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.3.1)
+  name: Bambu Lab 3D Printer Monitor (v1.3.2)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -287,6 +287,11 @@ trigger:
     to:
       - "finish"
       - "failed"
+    not_from:
+      - "unavailable"
+      - "unknown"
+      - "finish"
+      - "failed"
     for:
       seconds: 15
     id: print_status_change
@@ -362,6 +367,10 @@ trigger:
   - platform: state
     entity_id: !input print_status_entity
     to: "finish"
+    not_from:
+      - "unavailable"
+      - "unknown"
+      - "finish"
     id: print_finished_clear_persistent
 
   # Print paused - detect via print_status going to pause (catches ALL pause scenarios)
