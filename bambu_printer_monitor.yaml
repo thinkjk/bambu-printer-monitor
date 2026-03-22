@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.3.2)
+  name: Bambu Lab 3D Printer Monitor (v1.3.3)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -457,12 +457,13 @@ action:
          trigger.to_state is not none and
          trigger.from_state.state != trigger.to_state.state) }}
   
-  # ULTIMATE print completion validation - only allow if progress is high enough
+  # ULTIMATE print completion/failure validation - only allow if coming from a real
+  # print state. Transitions from unavailable/unknown/idle/offline/finish are
+  # connectivity events, not real completions.
   - condition: template
     value_template: >
       {{ trigger.id != 'print_status_change' or
-         trigger.to_state.state != 'finish' or
-         states(print_progress) | int >= 98 }}
+         trigger.from_state.state in ['running', 'pause'] }}
   
   - choose:
       # Print completed successfully
@@ -724,7 +725,9 @@ action:
             value_template: "{{ not enable_persistent }}"
           - condition: trigger
             id: progress_100
-          # Ensure we're actually printing or just finished
+          # Ensure we're actually printing (not a stale state after reconnect)
+          - condition: template
+            value_template: "{{ states(print_status) in ['running', 'pause'] }}"
           - condition: template
             value_template: "{{ states(current_stage) in ['printing', 'finish'] }}"
         sequence:
