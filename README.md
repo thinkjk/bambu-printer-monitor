@@ -58,6 +58,7 @@ After importing, create a new automation from the blueprint and configure your p
 | Temperature Entities | Bed and nozzle temperature sensors |
 | Nozzle 1/2 Temperature | Optional - individual nozzle temps for dual-extruder printers |
 | Camera Entity | Printer camera for snapshots |
+| Print Error / HMS Errors | Optional - include the printer's actual error message (and HMS wiki link) in pause/failure notifications |
 | Notify Device | Mobile device for notifications |
 | AMS 1-4 | Optional - up to 4 AMS units for filament monitoring |
 | AMS HT | Optional - AMS HT for high-temperature filaments |

@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.3.3)
+  name: Bambu Lab 3D Printer Monitor (v1.4.0)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -93,6 +93,26 @@ blueprint:
       selector:
         entity:
           domain: sensor
+          integration: bambu_lab
+    print_error_entity:
+      name: Print Error Entity (Optional)
+      description: >
+        The print error binary sensor (e.g., binary_sensor.h2d_print_error).
+        When set, pause/failure notifications include the printer's error message.
+      default: ""
+      selector:
+        entity:
+          domain: binary_sensor
+          integration: bambu_lab
+    hms_errors_entity:
+      name: HMS Errors Entity (Optional)
+      description: >
+        The HMS errors binary sensor (e.g., binary_sensor.h2d_hms_errors).
+        When set, pause/failure notifications include the HMS error details and wiki link.
+      default: ""
+      selector:
+        entity:
+          domain: binary_sensor
           integration: bambu_lab
     camera_entity:
       name: Printer Camera
@@ -218,6 +238,8 @@ variables:
   bed_target_temperature: !input bed_target_temperature_entity
   task_name: !input task_name_entity
   end_time: !input end_time_entity
+  print_error_sensor: !input print_error_entity
+  hms_errors_sensor: !input hms_errors_entity
   camera: !input camera_entity
   notify_device: !input notify_device
   notify_service: !input notify_service
@@ -270,6 +292,34 @@ variables:
     {% set hours = mins // 60 %}
     {% set minutes = mins % 60 %}
     {% if hours > 0 %}{{ hours }}h {{ minutes }}m{% else %}{{ minutes }}m{% endif %}
+
+  # Collect the printer's own error text (print_error + each active HMS error).
+  # Pauses like AMS retraction failures happen during changing_filament, so
+  # current_stage never shows a paused_* reason - these sensors do.
+  error_details: >-
+    {%- set ns = namespace(lines=[]) -%}
+    {%- if print_error_sensor != '' and is_state(print_error_sensor, 'on') -%}
+      {%- set msg = state_attr(print_error_sensor, 'error') -%}
+      {%- set code = state_attr(print_error_sensor, 'code') -%}
+      {%- if msg -%}
+        {%- set ns.lines = ns.lines + ['❗ ' ~ msg ~ (' [' ~ code ~ ']' if code else '')] -%}
+      {%- endif -%}
+    {%- endif -%}
+    {%- if hms_errors_sensor != '' and is_state(hms_errors_sensor, 'on') -%}
+      {%- for i in range(1, (state_attr(hms_errors_sensor, 'Count') | int(0)) + 1) -%}
+        {%- set msg = state_attr(hms_errors_sensor, i ~ '-Error') -%}
+        {%- if msg -%}
+          {%- set ns.lines = ns.lines + ['🔧 ' ~ msg] -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {{- ns.lines | join('\n') -}}
+
+  # Wiki link for the first active HMS error (empty if none)
+  error_wiki: >-
+    {%- if hms_errors_sensor != '' and is_state(hms_errors_sensor, 'on') -%}
+      {{- state_attr(hms_errors_sensor, '1-Wiki') or '' -}}
+    {%- endif -%}
 
   # Check if we're in quiet hours
   is_quiet_time: >
@@ -570,7 +620,14 @@ action:
               - service: "{{ notify_service }}"
                 data:
                   title: "❌ Print Failed"
-                  message: "{{ printer_name }} print failed - {{ trigger.to_state.state }}"
+                  message: >
+                    {{ printer_name }} print failed.
+                    {% if error_details %}
+
+                    {{ error_details }}{% if error_wiki %}
+
+                    📖 {{ error_wiki }}{% endif %}
+                    {% endif %}
                   data:
                     entity_id: !input camera_entity
                     channel: "3d_printer_alerts"
@@ -587,7 +644,14 @@ action:
                 domain: mobile_app
                 type: notify
                 title: "❌ Print Failed"
-                message: "{{ printer_name }} print failed - {{ trigger.to_state.state }}"
+                message: >
+                  {{ printer_name }} print failed.
+                  {% if error_details %}
+
+                  {{ error_details }}{% if error_wiki %}
+
+                  📖 {{ error_wiki }}{% endif %}
+                  {% endif %}
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer_alerts"
@@ -887,6 +951,12 @@ action:
                     📊 {{ states(print_progress) | default(0) }}% complete
 
                     {{ alert_action }}
+                    {% if error_details %}
+
+                    {{ error_details }}{% if error_wiki %}
+
+                    📖 {{ error_wiki }}{% endif %}
+                    {% endif %}
 
                     {% if include_live_view %}📹 [View Camera]({{ live_view_url }}){% endif %}
                   data:
@@ -912,6 +982,12 @@ action:
                   📊 {{ states(print_progress) | default(0) }}% complete
 
                   {{ alert_action }}
+                  {% if error_details %}
+
+                  {{ error_details }}{% if error_wiki %}
+
+                  📖 {{ error_wiki }}{% endif %}
+                  {% endif %}
                 data:
                   entity_id: !input camera_entity
                   channel: "3d_printer_alerts"
@@ -970,9 +1046,13 @@ action:
               pause_message: >
                 {% if is_user_pause %}
                   {{ printer_name }} print has been paused.
+                {% elif error_details != '' %}
+                  {{ printer_name }} print paused due to a printer error:
                 {% else %}
                   {{ printer_name }} print has paused unexpectedly. Check the printer for issues.
                 {% endif %}
+              pause_details: >-
+                {{ error_details if not is_user_pause else '' }}
 
           - if:
               - condition: template
@@ -983,6 +1063,12 @@ action:
                   title: "{{ pause_title }}"
                   message: >
                     {{ pause_message }}
+                    {% if pause_details %}
+
+                    {{ pause_details }}{% if error_wiki %}
+
+                    📖 {{ error_wiki }}{% endif %}
+                    {% endif %}
 
                     📄 {{ print_name }}
                     📊 {{ states(print_progress) | default(0) }}% complete
@@ -1006,6 +1092,12 @@ action:
                 title: "{{ pause_title }}"
                 message: >
                   {{ pause_message }}
+                  {% if pause_details %}
+
+                  {{ pause_details }}{% if error_wiki %}
+
+                  📖 {{ error_wiki }}{% endif %}
+                  {% endif %}
 
                   📄 {{ print_name }}
                   📊 {{ states(print_progress) | default(0) }}% complete

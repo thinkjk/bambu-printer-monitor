@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.0] - 2026-10-30
+
+### Added
+- Optional **Print Error** and **HMS Errors** entity inputs. When set, pause, error-pause, and failure notifications include the printer's own error message (e.g., "AMS failed to pull back filament... [0700_8004]") plus the HMS wiki link
+- Pauses that happen outside a `paused_*` stage (e.g., AMS retraction failures during `changing_filament`) now say why they paused instead of "paused unexpectedly"
+
+### Fixed
+- Failure notification no longer reads "print failed - failed"
+
 ## [1.3.0] - 2026-02-10
 
 ### Fixed
