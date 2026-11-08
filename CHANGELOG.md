@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] - 2026-11-07
+
+### Fixed
+- **Persistent progress notification not appearing for new prints:**
+  - Quiet hours blocked `persistent_progress_update` entirely, so a print started after 22:00 got no notification until the first progress tick after quiet hours ended. The persistent notification is silent (`importance: low`), so it now runs during quiet hours
+  - Progress ticks ~10s before `current_stage` becomes `printing`, so the first progress update saw a prep stage and cleared instead of posting, leaving no notification until the next 1% tick (up to ~7 min on slow prints). A new `current_stage` → `printing` trigger now posts the notification immediately on print start and after each filament change
+- Removed `timeout: 600` from the persistent notification so it no longer auto-dismisses on slow prints where 1% takes more than 10 minutes
+
 ## [1.4.0] - 2026-10-30
 
 ### Added

@@ -1,5 +1,5 @@
 blueprint:
-  name: Bambu Lab 3D Printer Monitor (v1.4.0)
+  name: Bambu Lab 3D Printer Monitor (v1.4.1)
   author: thinkjk
   homeassistant:
     min_version: 2024.6.0
@@ -407,6 +407,17 @@ trigger:
       seconds: 5
     id: persistent_progress_update
 
+  # Post the persistent notification as soon as the stage enters printing
+  # (print start, or resume after a filament change). Progress often ticks
+  # ~10s BEFORE the stage becomes "printing", so the progress trigger alone
+  # can miss the start and wait for the next 1% tick (up to ~7 min on slow prints).
+  - platform: state
+    entity_id: !input current_stage_entity
+    to: "printing"
+    for:
+      seconds: 5
+    id: persistent_stage_printing
+
   # Clear persistent notification when print ends (stage leaves printing)
   - platform: state
     entity_id: !input current_stage_entity
@@ -477,9 +488,12 @@ condition:
     conditions:
       - condition: template
         value_template: "{{ not is_quiet_time }}"
-      # Always allow persistent notification cleanup triggers through
+      # Always allow persistent notification triggers through - the persistent
+      # notification is silent (importance: low), so it's safe during quiet hours
       - condition: trigger
         id:
+          - persistent_progress_update
+          - persistent_stage_printing
           - print_stage_ended
           - print_finished_clear_persistent
           - quiet_time_ended
@@ -1156,7 +1170,9 @@ action:
           - condition: template
             value_template: "{{ enable_persistent }}"
           - condition: trigger
-            id: persistent_progress_update
+            id:
+              - persistent_progress_update
+              - persistent_stage_printing
         sequence:
           - if:
               - condition: template
@@ -1186,7 +1202,6 @@ action:
                         notification_icon: "mdi:printer-3d"
                         color: "#2196F3"
                         sticky: true
-                        timeout: 600
                         progress: "{{ states(print_progress) | int }}"
                         progress_max: 100
                         actions:
@@ -1210,7 +1225,6 @@ action:
                       channel: "3d_printer_persistent"
                       importance: low
                       sticky: true
-                      timeout: 600
                       progress: "{{ states(print_progress) | int }}"
                       progress_max: 100
                       actions:
